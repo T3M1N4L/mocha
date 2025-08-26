@@ -22,7 +22,7 @@ export default function Settings() {
 
   const [aboutBlank, setAboutBlank] = createSignal('disabled')
 
-  const [theme, setTheme] = createSignal('amoled')
+  const [theme, setTheme] = createSignal('default')
 
   const [debug, setDebug] = createSignal('disabled')
   
@@ -205,7 +205,7 @@ export default function Settings() {
           <select class="select select-bordered w-full max-w-xs" value={theme()} onChange={(e) => setTheme(e.target.value)}>
             {themes.map((item, index) => {
               // biome-ignore lint: it doesn't accept a key for some reason
-              return <option value={item}>{index === 0 ? 'amoled' : item.charAt(0).toUpperCase() + item.slice(1)}</option>
+              return <option value={item}>{index === 0 ? 'default' : item.charAt(0).toUpperCase() + item.slice(1)}</option>
             })}
           </select>
 
@@ -361,11 +361,11 @@ export default function Settings() {
             setPanicKey('')
             setPanicUrl('https://classroom.google.com/h')
             setAboutBlank('disabled')
-            setTheme('forest')
+            setTheme('amoled')
             setDebug('disabled')
-            setDevtools('disabled')
+            setDevtools('enabled')
             setTransport('epoxy')
-            setSearchEngine('duckduckgo')
+            setSearchEngine('google')
             save()
           }}
         >
