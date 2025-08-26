@@ -79,7 +79,7 @@ store.set('bookmarks', [], false)
 store.set(
   'searchEngine',
   {
-    engine: 'duckduckgo'
+    engine: 'google'
   },
   false
 )
