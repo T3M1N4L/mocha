@@ -19,8 +19,8 @@ analytics.trackPageview()
 store.set(
   'tab',
   {
-    name: null,
-    icon: null
+    name: 'Google',
+    icon: 'https://www.google.com/favicon.ico'
   },
   false
 )
@@ -37,15 +37,15 @@ store.set(
 store.set(
   'aboutblank',
   {
-    enabled: false
+    enabled: true
   },
-  false
+  true
 )
 
 store.set(
   'theme',
   {
-    theme: null
+    theme: 'amoled'
   },
   false
 )
@@ -61,9 +61,9 @@ store.set(
 store.set(
   'devtools',
   {
-    enabled: false
+    enabled: true
   },
-  false
+  true
 )
 
 store.set(
