@@ -29,12 +29,12 @@ export function formatSearch(input: string): string {
   const searchEngineData = store('searchEngine') as SearchEngineData
 
   switch (searchEngineData.engine) {
-    case 'google':
-      return new URL(`https://google.com/search?q=${input}`).toString()
+    case 'duckduckgo':
+      return new URL(`https://duckduckgo.com/search?q=${input}`).toString()
     case 'ecosia':
       return new URL(`https://www.ecosia.org/search?q=${input}`).toString()
     default:
-      return new URL(`https://duckduckgo.com/?q=${input}`).toString()
+      return new URL(`https://google.com/?q=${input}`).toString()
   }
 }
 

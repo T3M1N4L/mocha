@@ -22,15 +22,15 @@ export default function Settings() {
 
   const [aboutBlank, setAboutBlank] = createSignal('disabled')
 
-  const [theme, setTheme] = createSignal('forest')
+  const [theme, setTheme] = createSignal('amoled')
 
   const [debug, setDebug] = createSignal('disabled')
   
-  const [devtools, setDevtools] = createSignal('disabled')
+  const [devtools, setDevtools] = createSignal('enabled')
 
   const [transport, setTransport] = createSignal('epoxy')
 
-  const [searchEngine, setSearchEngine] = createSignal('duckduckgo')
+  const [searchEngine, setSearchEngine] = createSignal('google')
 
   const [moreInfoTitle, setMoreInfoTitle] = createSignal('')
   const [moreInfoContent, setMoreInfoContent] = createSignal('')
