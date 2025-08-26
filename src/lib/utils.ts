@@ -30,11 +30,11 @@ export function formatSearch(input: string): string {
 
   switch (searchEngineData.engine) {
     case 'duckduckgo':
-      return new URL(`https://duckduckgo.com/search?q=${input}`).toString()
+      return new URL(`https://duckduckgo.com/?q=${input}`).toString()
     case 'ecosia':
       return new URL(`https://www.ecosia.org/search?q=${input}`).toString()
     default:
-      return new URL(`https://google.com/?q=${input}`).toString()
+      return new URL(`https://google.com/search?q=${input}`).toString()
   }
 }
 
