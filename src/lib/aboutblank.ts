@@ -12,6 +12,11 @@ export function handleAboutBlank() {
 export function openAbWindow(src: string, redirect = true) {
   const tab = window.open('about:blank', '_blank')
   if (!tab) return
+  const link = tab.document.createElement('link')
+  link.rel = 'icon'
+  link.href = './google.png'
+  tab.document.head.appendChild(link)
+  tab.document.title = 'Google'
   const iframe = tab.document.createElement('iframe')
   const stl = iframe.style
   stl.border = stl.outline = 'none'

@@ -19,8 +19,8 @@ analytics.trackPageview()
 store.set(
   'tab',
   {
-    name: 'Google',
-    icon: 'https://www.google.com/favicon.ico'
+    name: null,
+    icon: null
   },
   false
 )
