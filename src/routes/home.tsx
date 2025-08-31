@@ -41,67 +41,16 @@ export default function Home() {
       </div>
 
       <div class="absolute bottom-0 flex w-screen items-center justify-between p-4 px-6 text-sm">
-        &copy; 2025 proudparrot2
         <div class="flex gap-4">
           <div class="flex items-center gap-2">
             <GitCommitHorizontal />
-            <A class="link-hover link" target="_blank" href={`https://github.com/cafe-labs/mocha/commit/${__GIT_COMMIT__}/`}>
+            <A class="link-hover link" target="_blank" href={`https://github.com/t3m1n4l/mocha/commit/${__GIT_COMMIT__}/`}>
               {__GIT_COMMIT__.slice(0, 7)}
             </A>
           </div>
           <Dot class="-mx-3" />
-          <a class="link-hover link" href="https://github.com/cafe-labs/mocha" rel="noreferrer" target="_blank">
-            GitHub
-          </a>
-          <button
-            class="link-hover link p-0 m-0 -mt-1"
-            type="button"
-            onClick={() => {
-              const modal = document.querySelector('#discordmodal') as HTMLDialogElement
-              modal.showModal()
-            }}
-          >
-            Discord
-          </button>
-          <A href="/faq" class="link-hover link">
-            FAQ
-          </A>
         </div>
       </div>
-
-      <dialog id="discordmodal" class="modal">
-        <div class="modal-box">
-          <h3 class="text-lg font-bold">Opening a link</h3>
-          <p class="py-4">Would you like to open our Discord server in a normal tab, or inside the proxy?</p>
-          <div class="modal-action">
-            <a
-              class="btn btn-primary"
-              href="https://discord.gg/yWKdcvcEmE"
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => {
-                const modal = document.querySelector('#discordmodal') as HTMLDialogElement
-                modal.close()
-              }}
-            >
-              Normal Window
-            </a>
-            <button
-              class="btn btn-primary"
-              type="button"
-              onClick={() => {
-                navigate(`/route/${btoa('https://discord.gg/yWKdcvcEmE')}`)
-              }}
-            >
-              Inside Proxy
-            </button>
-          </div>
-        </div>
-
-        <form method="dialog" class="modal-backdrop">
-          <button class="cursor-default" type="button" />
-        </form>
-      </dialog>
     </div>
   )
 }
