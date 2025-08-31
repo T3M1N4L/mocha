@@ -18,6 +18,10 @@ export interface TransportData {
   transport: keyof typeof transports
 }
 
+export interface WispData {
+  url: string | null
+}
+
 export interface ThemeData {
   theme: string | null
 }

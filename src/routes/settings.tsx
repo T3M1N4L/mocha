@@ -4,11 +4,12 @@ import store from 'store2'
 import { handleTabCloak } from '../lib/cloak'
 import { handleDebug } from '../lib/debug'
 import { handleTheme, themes } from '../lib/theme'
-import type { DebugData, PanicData, TabData, ThemeData, TransportData, AboutBlankData, DevtoolsData, SearchEngineData } from '../lib/types'
+import type { DebugData, PanicData, TabData, ThemeData, TransportData, AboutBlankData, DevtoolsData, SearchEngineData, WispData } from '../lib/types'
 
 import { CircleCheck, CircleHelp } from 'lucide-solid'
 import { exportData, importData, resetData } from '../lib/browsingdata'
 import { handleTransport } from '../lib/transport'
+import { DEFAULT_WISP_URL } from '../lib/proxy'
 
 export const [exportSuccessful, setExportStatus] = createSignal(false)
 export const [importSuccessful, setImportStatus] = createSignal(false)
@@ -29,6 +30,7 @@ export default function Settings() {
   const [devtools, setDevtools] = createSignal('enabled')
 
   const [transport, setTransport] = createSignal('epoxy')
+  const [wispUrl, setWispUrl] = createSignal(DEFAULT_WISP_URL)
 
   const [searchEngine, setSearchEngine] = createSignal('google')
 
@@ -36,11 +38,11 @@ export default function Settings() {
   const [moreInfoContent, setMoreInfoContent] = createSignal('')
   const [moreInfoVisibility, setMoreInfoVisiblity] = createSignal(false)
 
-  let fileImport: HTMLInputElement
-  let exportWarning: HTMLDialogElement
-  let importWarning: HTMLDialogElement
-  let deleteWarning: HTMLDialogElement
-  let moreInfo: HTMLDialogElement
+  let fileImport!: HTMLInputElement
+  let exportWarning!: HTMLDialogElement
+  let importWarning!: HTMLDialogElement
+  let deleteWarning!: HTMLDialogElement
+  let moreInfo!: HTMLDialogElement
 
   onMount(() => {
     const tabData = store('tab') as TabData
@@ -69,6 +71,9 @@ export default function Settings() {
 
     const transportData = store('transport') as TransportData
     if (transportData.transport) setTransport(transportData.transport)
+
+    const wispData = store('wisp') as WispData
+    if (wispData && wispData.url) setWispUrl(wispData.url)
 
     const searchEngineData = store('searchEngine') as SearchEngineData
     if (searchEngineData.engine) setSearchEngine(searchEngineData.engine)
@@ -103,6 +108,10 @@ export default function Settings() {
 
     store('transport', {
       transport: transport()
+    })
+
+    store('wisp', {
+      url: wispUrl()
     })
 
     store('searchEngine', {
@@ -294,6 +303,7 @@ export default function Settings() {
                   <option value="epoxy">Epoxy</option>
                   <option value="libcurl">Libcurl</option>
                 </select>
+                <input type="text" class="input input-bordered w-full" value={wispUrl()} onInput={(e) => setWispUrl(e.target.value)} placeholder="Wisp URL (wss://...)" />
 
                 <span
                   class="absolute top-2.5 right-2.5 text-base-content/50 opacity-0 group-hover:opacity-100 duration-150 cursor-pointer"
@@ -365,6 +375,7 @@ export default function Settings() {
             setDebug('disabled')
             setDevtools('enabled')
             setTransport('epoxy')
+            setWispUrl(DEFAULT_WISP_URL)
             setSearchEngine('google')
             save()
           }}

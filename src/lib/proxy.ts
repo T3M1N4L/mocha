@@ -1,10 +1,10 @@
 import store from 'store2'
-import type { TransportData } from './types'
+import type { TransportData, WispData } from './types'
 import { transports } from './transport'
 import { BareMuxConnection } from '@mercuryworkshop/bare-mux'
 import { setProxyStatus } from '../routes/route'
 
-export const wispUrl = "wss://nebulaservices.org/wisp/";
+export const DEFAULT_WISP_URL = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/wisp/`;
 
 export async function setupProxy() {
   if ('serviceWorker' in navigator) {
@@ -26,8 +26,12 @@ export async function setupProxy() {
 
     const transportData = store('transport') as TransportData
     console.log('Using', transports[transportData.transport])
+
+    const wispData = store('wisp') as WispData
+    const wisp = (wispData && wispData.url) ? wispData.url : DEFAULT_WISP_URL
+
     const connection = new BareMuxConnection('/bare-mux/worker.js')
-    await connection.setTransport(transports[transportData.transport], [{ wisp: wispUrl }])
+    await connection.setTransport(transports[transportData.transport], [{ wisp }])
     setProxyStatus(true)
   }
 }
