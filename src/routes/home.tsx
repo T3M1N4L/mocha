@@ -48,7 +48,6 @@ export default function Home() {
               {__GIT_COMMIT__.slice(0, 7)}
             </A>
           </div>
-          <Dot class="-mx-3" />
         </div>
       </div>
     </div>
