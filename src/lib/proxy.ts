@@ -4,7 +4,7 @@ import { transports } from './transport'
 import { BareMuxConnection } from '@mercuryworkshop/bare-mux'
 import { setProxyStatus } from '../routes/route'
 
-export const wispUrl = "wss://delusionz.xyz/w/";
+export const wispUrl = "wss://nebulaservices.org/wisp/";
 
 export async function setupProxy() {
   if ('serviceWorker' in navigator) {
