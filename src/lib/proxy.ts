@@ -31,7 +31,12 @@ export async function setupProxy() {
     const wisp = (wispData && wispData.url) ? wispData.url : DEFAULT_WISP_URL
 
     const connection = new BareMuxConnection('/bare-mux/worker.js')
-    await connection.setTransport(transports[transportData.transport], [{ wisp }])
+    await connection.setTransport(
+      transports[transportData.transport],
+      [{
+        wisp
+      }]
+    );
     setProxyStatus(true)
   }
 }
