@@ -4,7 +4,6 @@ import solid from 'vite-plugin-solid'
 import wisp from 'wisp-server-node'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 
-import { uvPath } from '@titaniumnetwork-dev/ultraviolet'
 import { baremuxPath } from '@mercuryworkshop/bare-mux/node'
 // @ts-expect-error
 import { epoxyPath } from '@mercuryworkshop/epoxy-transport'
@@ -26,10 +25,6 @@ export default defineConfig({
     },
     viteStaticCopy({
       targets: [
-        {
-          src: [normalizePath(path.resolve(uvPath, 'uv.bundle.js')), normalizePath(path.resolve(uvPath, 'uv.handler.js')), normalizePath(path.resolve(uvPath, 'uv.client.js')), normalizePath(path.resolve(uvPath, 'uv.sw.js'))],
-          dest: 'coffee'
-        },
         {
           src: normalizePath(path.resolve(baremuxPath, 'worker.js')),
           dest: 'bare-mux'
