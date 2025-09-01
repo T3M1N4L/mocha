@@ -1,6 +1,6 @@
 /*global Ultraviolet*/
 self.__uv$config = {
-  prefix: '/~/',
+  prefix: '/uv/',
   encodeUrl: Ultraviolet.codec.xor.encode,
   decodeUrl: Ultraviolet.codec.xor.decode,
   handler: '/coffee/uv.handler.js',

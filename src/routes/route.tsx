@@ -34,7 +34,7 @@ export default function Route() {
     const query = atob(params.route)
 
     if (proxyReady()) {
-      ref.src = `/~/${encodeXor(formatSearch(query))}`
+      ref.src = `/uv/${encodeXor(formatSearch(query))}`
     }
   })
 
@@ -164,7 +164,7 @@ export default function Route() {
             if (e.key !== 'Enter') return
             if (!ref || !ref.contentWindow) return
 
-            ref.src = `/~/${encodeXor(formatSearch(e.currentTarget.value))}`
+            ref.src = `/uv/${encodeXor(formatSearch(e.currentTarget.value))}`
             e.currentTarget.blur()
           }}
         />
