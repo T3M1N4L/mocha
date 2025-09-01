@@ -6,6 +6,7 @@ import http from 'node:http'
 import path from 'node:path'
 import { build } from 'vite'
 import type { Socket } from 'node:net'
+import { scramjetPath } from "@mercuryworkshop/scramjet"
 
 const httpServer = http.createServer()
 const proxy = httpProxy.createProxyServer()

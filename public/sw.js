@@ -1,8 +1,11 @@
-importScripts('/coffee/uv.bundle.js')
-importScripts('/coffee/uv.config.js')
-importScripts(__uv$config.sw || '/coffee/uv.sw.js')
+importScripts('/latte/uv.bundle.js')
+importScripts('/latte/uv.config.js')
+importScripts("/matcha/scramjet.all.js");
+importScripts(__uv$config.sw || '/latte/uv.sw.js')
 importScripts('/workerware/workerware.js')
 importScripts('/adblock.js')
+
+
 
 
 self.addEventListener('install', (event) => {
@@ -10,6 +13,8 @@ self.addEventListener('install', (event) => {
 })
 
 const sw = new UVServiceWorker()
+const { ScramjetServiceWorker } = $scramjetLoadWorker();
+const scramjet = new ScramjetServiceWorker();
 const ww = new WorkerWare({})
 
 ww.use({
@@ -23,7 +28,11 @@ self.addEventListener('fetch', (event) => {
     (async () => {
       let mwResponse = await ww.run(event)();
       if (mwResponse.includes(null)) {
-        return; 
+        return;
+      }
+      await scramjet.loadConfig();
+      if (scramjet.route(event)) {
+        return scramjet.fetch(event);
       }
       if (event.request.url.startsWith(location.origin + __uv$config.prefix)) {
         return await sw.fetch(event);
@@ -32,3 +41,4 @@ self.addEventListener('fetch', (event) => {
     })()
   );
 });
+
