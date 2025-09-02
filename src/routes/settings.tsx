@@ -406,6 +406,7 @@ export default function Settings() {
             setTransport('epoxy')
             setWispUrl(DEFAULT_WISP_URL)
             setSearchEngine('google')
+            setProxyEngine('uv')
             save()
           }}
         >
