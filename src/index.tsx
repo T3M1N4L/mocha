@@ -84,6 +84,14 @@ store.set(
   false
 )
 
+store.set(
+  'proxyEngine',
+  {
+    engine: 'uv'
+  },
+  true
+)
+
 // Debug is here to capture all logs
 handleDebug()
 

@@ -34,6 +34,8 @@ export default function Settings() {
 
   const [searchEngine, setSearchEngine] = createSignal('google')
 
+  const [proxyEngine, setProxyEngine] = createSignal<'uv' | 'scramjet'>('uv')
+
   const [moreInfoTitle, setMoreInfoTitle] = createSignal('')
   const [moreInfoContent, setMoreInfoContent] = createSignal('')
   const [moreInfoVisibility, setMoreInfoVisiblity] = createSignal(false)
@@ -43,6 +45,7 @@ export default function Settings() {
   let importWarning!: HTMLDialogElement
   let deleteWarning!: HTMLDialogElement
   let moreInfo!: HTMLDialogElement
+  let proxyModal!: HTMLDialogElement
 
   onMount(() => {
     const tabData = store('tab') as TabData
@@ -77,6 +80,9 @@ export default function Settings() {
 
     const searchEngineData = store('searchEngine') as SearchEngineData
     if (searchEngineData.engine) setSearchEngine(searchEngineData.engine)
+
+    const proxyEngineData = store('proxyEngine') as { engine: 'uv' | 'scramjet' }
+    if (proxyEngineData && proxyEngineData.engine) setProxyEngine(proxyEngineData.engine)
   })
 
   function save() {
@@ -116,6 +122,10 @@ export default function Settings() {
 
     store('searchEngine', {
       engine: searchEngine()
+    })
+
+    store('proxyEngine', {
+      engine: proxyEngine()
     })
 
     handleTabCloak()
@@ -244,6 +254,25 @@ export default function Settings() {
             onMouseDown={() => {
               setMoreInfoTitle('Search Engine')
               setMoreInfoContent('Changes the search engine used when you type a search query into Mocha.')
+              setMoreInfoVisiblity(true)
+            }}
+          >
+            <CircleHelp class="h-5 w-5" />
+          </span>
+        </div>
+
+        <div class="flex group relative w-80 flex-col items-center gap-4 rounded-box bg-base-200 p-4">
+          <h1 class="text-2xl font-semibold">Proxy Engine</h1>
+          <p class="text-center text-xs">Switch between UV and Scramjet</p>
+          <button class="btn btn-outline w-full" type="button" onClick={() => proxyModal.showModal()}>
+            Switch
+          </button>
+
+          <span
+            class="absolute top-2.5 right-2.5 text-base-content/50 opacity-0 group-hover:opacity-100 duration-150 cursor-pointer"
+            onMouseDown={() => {
+              setMoreInfoTitle('Proxy Engine')
+              setMoreInfoContent("Choose which proxy engine to use for browsing: UV uses XOR-encoded paths, Scramjet uses plain paths.")
               setMoreInfoVisiblity(true)
             }}
           >
@@ -383,6 +412,65 @@ export default function Settings() {
           Reset
         </button>
       </div>
+
+      <dialog
+        class="modal"
+        ref={
+          // biome-ignore lint: needs to be here for Solid refs
+          proxyModal!
+        }
+      >
+        <div class="modal-box">
+          <h3 class="text-lg font-bold">Switch Proxy Engine</h3>
+          <div class="py-4 flex flex-col gap-3">
+            <label class="label cursor-pointer justify-start gap-2">
+              <input
+                type="radio"
+                name="proxyEngine"
+                class="radio"
+                checked={proxyEngine() === 'uv'}
+                onChange={() => setProxyEngine('uv')}
+              />
+              <span>UV</span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-2">
+              <input
+                type="radio"
+                name="proxyEngine"
+                class="radio"
+                checked={proxyEngine() === 'scramjet'}
+                onChange={() => setProxyEngine('scramjet')}
+              />
+              <span>SJ</span>
+            </label>
+          </div>
+          <div class="modal-action flex gap-2">
+            <button class="btn w-28" type="button" onClick={() => proxyModal.close()}>
+              Cancel
+            </button>
+            <button
+              class="btn btn-primary w-28"
+              type="button"
+              onClick={() => {
+                store('proxyEngine', { engine: proxyEngine() })
+                toast.custom(() => {
+                  return (
+                    <div class="toast toast-center toast-top">
+                      <div class="alert alert-success w-80">
+                        <CircleCheck />
+                        <span>Proxy engine switched to {proxyEngine().toUpperCase()}.</span>
+                      </div>
+                    </div>
+                  )
+                })
+                proxyModal.close()
+              }}
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      </dialog>
 
       <dialog
         class="modal"

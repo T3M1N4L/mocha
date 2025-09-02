@@ -40,11 +40,16 @@ export function formatSearch(input: string): string {
 
 export function getFavicon(contentWindow: ContentWindow): Promise<string> {
   return new Promise((resolve) => {
+    const origin =
+      (contentWindow as any).__uv$location?.origin ??
+      (contentWindow as any).__scramjet$location?.origin ??
+      contentWindow.location.origin
+
     const image = new Image()
-    image.src = `${contentWindow.__uv$location.origin}/favicon.ico`
+    image.src = `${origin}/favicon.ico`
 
     image.onload = () => {
-      resolve(`${contentWindow.__uv$location.origin}/favicon.ico`)
+      resolve(`${origin}/favicon.ico`)
     }
 
     image.onerror = () => {

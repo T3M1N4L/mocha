@@ -8,14 +8,14 @@ import { openAbWindow } from '../lib/aboutblank'
 import { handlePanicKey } from '../lib/panic'
 import { patches } from '../lib/patch'
 import { handleTransport } from '../lib/transport'
-import type { ContentWindow, DevtoolsData, TransportData } from '../lib/types'
+import type { ContentWindow, DevtoolsData, TransportData, ProxyEngineData } from '../lib/types'
 import { encodeXor, formatSearch, getFavicon } from '../lib/utils'
 import { bookmarks, handleBookmark } from '../lib/bookmarks'
 
 export const [proxyReady, setProxyStatus] = createSignal(false)
 
 export default function Route() {
-  let ref: HTMLIFrameElement
+  let ref!: HTMLIFrameElement
   const [url, setUrl] = createSignal('')
   const [showControls, setShowControls] = createSignal(true)
   const [bookmarked, setBookmarked] = createSignal(false)
@@ -34,7 +34,15 @@ export default function Route() {
     const query = atob(params.route)
 
     if (proxyReady()) {
-      ref.src = `/uv/${encodeXor(formatSearch(query))}`
+      const engine = (store('proxyEngine') as ProxyEngineData)?.engine || 'uv'
+      const dest = formatSearch(query)
+      if (engine === 'scramjet') {
+        ref.src = `/scramjet/${dest}`
+      } else {
+        ref.src = `/uv/${encodeXor(dest)}`
+      }
+      // Always show the real destination (not encoded, not prefixed) in the control bar
+      setUrl(dest)
     }
   })
 
@@ -42,19 +50,43 @@ export default function Route() {
     if (!ref || !ref.contentWindow) return
     const contentWindow = ref.contentWindow as ContentWindow
 
-    if (!('__uv$location' in contentWindow)) return
+    // Derive the real target URL for display only when reliable:
+    // - Scramjet: strip the /scramjet/ prefix and decode the remainder
+    // - UV: when __uv$location is present, use it
+    // - Otherwise: do not overwrite the displayed URL (avoid about:blank or encoded proxy paths)
+    const origin = window.location.origin
+    const rawHref = contentWindow.location.href
+    let targetHref: string | undefined
 
-    setUrl(contentWindow.__uv$location.href)
+    if (rawHref.startsWith(`${origin}/scramjet/`)) {
+      const enc = rawHref.slice(`${origin}/scramjet/`.length)
+      try {
+        targetHref = decodeURIComponent(enc)
+      } catch {
+        targetHref = enc
+      }
+    } else if ((contentWindow as any).__uv$location?.href) {
+      targetHref = (contentWindow as any).__uv$location.href
+    }
+
+    // Only set URL when we have a clean destination URL
+    if (targetHref) {
+      setUrl(targetHref)
+    }
 
     contentWindow.addEventListener('keydown', handlePanicKey)
 
-    if (bookmarks().some((val) => val.url === contentWindow.__uv$location.href)) {
-      setBookmarked(true)
-    } else {
-      setBookmarked(false)
-    }
+    // Use the best-known destination URL for checks
+    const displayUrl = targetHref ?? url()
 
-    const hostname = contentWindow.__uv$location.hostname
+    setBookmarked(bookmarks().some((val) => val.url === displayUrl))
+
+    let hostname = ''
+    try {
+      hostname = new URL(displayUrl).hostname
+    } catch {
+      hostname = contentWindow.location.hostname
+    }
 
     const patch = patches.find((x) => hostname.includes(x.hostname))
     if (!patch) return
@@ -163,8 +195,15 @@ export default function Route() {
           onKeyDown={(e) => {
             if (e.key !== 'Enter') return
             if (!ref || !ref.contentWindow) return
-
-            ref.src = `/uv/${encodeXor(formatSearch(e.currentTarget.value))}`
+            const engine = (store('proxyEngine') as ProxyEngineData)?.engine || 'uv'
+            const dest = formatSearch(e.currentTarget.value)
+            if (engine === 'scramjet') {
+              ref.src = `/scramjet/${dest}`
+            } else {
+              ref.src = `/uv/${encodeXor(dest)}`
+            }
+            // Reflect the real destination immediately
+            setUrl(dest)
             e.currentTarget.blur()
           }}
         />
@@ -209,11 +248,33 @@ export default function Route() {
             onClick={async () => {
               if (!ref || !ref.contentWindow) return
               const contentWindow = ref.contentWindow as ContentWindow
-              if (!('__uv$location' in contentWindow)) return
+
+              // Compute the real target URL for bookmarking:
+              // - Scramjet: strip the /scramjet/ prefix and decode
+              // - UV: use __uv$location.href if available
+              // - Fallback: use the current displayed url() (avoid about:blank or proxy-prefixed href)
+              const origin = window.location.origin
+              const rawHref = contentWindow.location.href
+              let targetHref: string | undefined
+
+              if (rawHref.startsWith(`${origin}/scramjet/`)) {
+                const enc = rawHref.slice(`${origin}/scramjet/`.length)
+                try {
+                  targetHref = decodeURIComponent(enc)
+                } catch {
+                  targetHref = enc
+                }
+              } else if ((contentWindow as any).__uv$location?.href) {
+                targetHref = (contentWindow as any).__uv$location.href
+              } else {
+                targetHref = url()
+              }
+
+              const finalHref = targetHref ?? url()
 
               const { status } = handleBookmark({
                 title: contentWindow.document.title,
-                url: contentWindow.__uv$location.href,
+                url: finalHref,
                 image: await getFavicon(contentWindow)
               })
 

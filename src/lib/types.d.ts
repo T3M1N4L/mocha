@@ -30,6 +30,10 @@ export interface SearchEngineData {
   engine: 'google' | 'duckduckgo' | 'ecosia'
 }
 
+export interface ProxyEngineData {
+  engine: 'uv' | 'scramjet'
+}
+
 export interface GameData {
   name: string
   id: string
@@ -68,7 +72,8 @@ export interface DevtoolsData {
 }
 
 export interface ContentWindow extends Window {
-  __uv$location: Location
+  __uv$location?: Location
+  __scramjet$location?: Location
   // biome-ignore lint: we don't know dude
   eruda: any
 }
