@@ -48,83 +48,83 @@ export default function Settings() {
   let proxyModal!: HTMLDialogElement
 
   onMount(() => {
-    const tabData = store('tab') as TabData
+    const tabData = store.local.get('tab') as TabData
     if (tabData.name) setTabName(tabData.name)
     if (tabData.icon) setTabIcon(tabData.icon)
 
-    const panicData = store('panic') as PanicData
+    const panicData = store.local.get('panic') as PanicData
     if (panicData.key) setPanicKey(panicData.key)
     if (panicData.url) setPanicUrl(panicData.url)
 
-    const aboutblankData = store('aboutblank') as AboutBlankData
+    const aboutblankData = store.local.get('aboutblank') as AboutBlankData
     if (aboutblankData.enabled) {
       setAboutBlank('enabled')
     } else {
       setAboutBlank('disabled')
     }
 
-    const themeData = store('theme') as ThemeData
+    const themeData = store.local.get('theme') as ThemeData
     if (themeData.theme) setTheme(themeData.theme)
 
-    const debugData = store('debug') as DebugData
+    const debugData = store.local.get('debug') as DebugData
     setDebug(debugData.enabled ? 'enabled' : 'disabled')
 
-    const devtoolsData = store('devtools') as DevtoolsData
+    const devtoolsData = store.local.get('devtools') as DevtoolsData
     setDevtools(devtoolsData.enabled ? 'enabled' : 'disabled')
 
-    const transportData = store('transport') as TransportData
+    const transportData = store.local.get('transport') as TransportData
     if (transportData.transport) setTransport(transportData.transport)
 
-    const wispData = store('wisp') as WispData
+    const wispData = store.local.get('wisp') as WispData
     if (wispData && wispData.url) setWispUrl(wispData.url)
 
-    const searchEngineData = store('searchEngine') as SearchEngineData
+    const searchEngineData = store.local.get('searchEngine') as SearchEngineData
     if (searchEngineData.engine) setSearchEngine(searchEngineData.engine)
 
-    const proxyEngineData = store('proxyEngine') as { engine: 'uv' | 'scramjet' }
+    const proxyEngineData = store.local.get('proxyEngine') as { engine: 'uv' | 'scramjet' }
     if (proxyEngineData && proxyEngineData.engine) setProxyEngine(proxyEngineData.engine)
   })
 
   function save() {
-    store('tab', {
+    store.local.set('tab', {
       name: tabName(),
       icon: tabIcon()
     })
 
-    store('panic', {
+    store.local.set('panic', {
       key: panicKey(),
       url: panicUrl()
     })
 
-    store('aboutblank', {
+    store.local.set('aboutblank', {
       enabled: aboutBlank() === 'enabled'
     })
 
-    store('theme', {
+    store.local.set('theme', {
       theme: theme()
     })
 
-    store('debug', {
+    store.local.set('debug', {
       enabled: debug() === 'enabled'
     })
 
-    store('devtools', {
+    store.local.set('devtools', {
       enabled: devtools() === 'enabled'
     })
 
-    store('transport', {
+    store.local.set('transport', {
       transport: transport()
     })
 
-    store('wisp', {
+    store.local.set('wisp', {
       url: wispUrl()
     })
 
-    store('searchEngine', {
+    store.local.set('searchEngine', {
       engine: searchEngine()
     })
 
-    store('proxyEngine', {
+    store.local.set('proxyEngine', {
       engine: proxyEngine()
     })
 
@@ -453,7 +453,7 @@ export default function Settings() {
               class="btn btn-primary w-28"
               type="button"
               onClick={() => {
-                store('proxyEngine', { engine: proxyEngine() })
+                store.local.set('proxyEngine', { engine: proxyEngine() })
                 toast.custom(() => {
                   return (
                     <div class="toast toast-center toast-top">

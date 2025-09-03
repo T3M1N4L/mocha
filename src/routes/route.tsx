@@ -34,7 +34,7 @@ export default function Route() {
     const query = atob(params.route)
 
     if (proxyReady()) {
-      const engine = (store('proxyEngine') as ProxyEngineData)?.engine || 'uv'
+      const engine = (store.local.get('proxyEngine') as ProxyEngineData)?.engine || 'uv'
       const dest = formatSearch(query)
       if (engine === 'scramjet') {
         ref.src = `/scramjet/${dest}`
@@ -195,7 +195,7 @@ export default function Route() {
           onKeyDown={(e) => {
             if (e.key !== 'Enter') return
             if (!ref || !ref.contentWindow) return
-            const engine = (store('proxyEngine') as ProxyEngineData)?.engine || 'uv'
+            const engine = (store.local.get('proxyEngine') as ProxyEngineData)?.engine || 'uv'
             const dest = formatSearch(e.currentTarget.value)
             if (engine === 'scramjet') {
               ref.src = `/scramjet/${dest}`
@@ -213,7 +213,7 @@ export default function Route() {
           </A>
         </div>
 
-        {(store('devtools') as DevtoolsData).enabled ? (
+        {(store.local.get('devtools') as DevtoolsData)?.enabled ? (
           <div class="tooltip" data-tip="Toggle devtools">
             <button
               class="btn btn-square join-item bg-base-200"

@@ -16,81 +16,53 @@ import './style.css'
 
 analytics.trackPageview()
 
-store.set(
-  'tab',
-  {
-    name: null,
-    icon: null
-  },
-  false
-)
+// Seed defaults only when the key is missing, never overwrite saved values
+function seed<T>(key: string, value: T) {
+  const existing = store.local.get(key)
+  if (existing === undefined || existing === null) {
+    store.local.set(key, value)
+  }
+}
 
-store.set(
-  'panic',
-  {
-    key: null,
-    url: null
-  },
-  false
-)
+seed('tab', {
+  name: null,
+  icon: null
+})
 
-store.set(
-  'aboutblank',
-  {
-    enabled: true
-  },
-  true
-)
+seed('panic', {
+  key: null,
+  url: null
+})
 
-store.set(
-  'theme',
-  {
-    theme: 'amoled'
-  },
-  false
-)
+seed('aboutblank', {
+  enabled: false
+})
 
-store.set(
-  'debug',
-  {
-    enabled: false
-  },
-  false
-)
+seed('theme', {
+  theme: 'amoled'
+})
 
-store.set(
-  'devtools',
-  {
-    enabled: true
-  },
-  true
-)
+seed('debug', {
+  enabled: false
+})
 
-store.set(
-  'transport',
-  {
-    transport: 'epoxy'
-  },
-  false
-)
+seed('devtools', {
+  enabled: true
+})
 
-store.set('bookmarks', [], false)
+seed('transport', {
+  transport: 'epoxy'
+})
 
-store.set(
-  'searchEngine',
-  {
-    engine: 'google'
-  },
-  false
-)
+seed('bookmarks', [] as unknown as never)
 
-store.set(
-  'proxyEngine',
-  {
-    engine: 'uv'
-  },
-  true
-)
+seed('searchEngine', {
+  engine: 'google'
+})
+
+seed('proxyEngine', {
+  engine: 'uv'
+})
 
 // Debug is here to capture all logs
 handleDebug()
