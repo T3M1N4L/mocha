@@ -50,9 +50,18 @@ export default defineConfig({
       }
     }
   },
-  define: {
-    __BUILD_DATE__: Date.now(),
-    __GIT_COMMIT__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.CF_PAGES_COMMIT_SHA ?? execSync('git rev-parse HEAD').toString().trim()),
-    __PRODUCTION__: process.env.NODE_ENV === 'production'
-  }
+define: {
+  __BUILD_DATE__: Date.now(),
+  __GIT_COMMIT__: JSON.stringify(
+    process.env.VERCEL_GIT_COMMIT_SHA ??
+    process.env.CF_PAGES_COMMIT_SHA ??
+    execSync('git rev-parse HEAD').toString().trim()
+  ),
+  __GIT_MESSAGE__: JSON.stringify(
+    process.env.VERCEL_GIT_COMMIT_MESSAGE ??
+    process.env.CF_PAGES_COMMIT_MESSAGE ??
+    execSync('git log -1 --pretty=%B').toString().trim()
+  ),
+  __PRODUCTION__: process.env.NODE_ENV === 'production'
+}
 })

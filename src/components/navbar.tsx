@@ -6,7 +6,7 @@ export default function Navbar() {
 
   return (
     <Show when={!location.pathname.includes('/route/')}>
-      <div class="navbar m-3.5 w-[calc(100vw-1.75rem)] rounded-btn bg-base-300 px-6">
+      <div class="navbar m-3.5 w-[calc(100vw-1.75rem)] rounded-btn bg-base-200 px-6 border border-base-300">
         <div class="navbar-start">
           <A href="/">
             <div class="btn btn-ghost -ml-2 flex h-11 min-h-11 gap-3">

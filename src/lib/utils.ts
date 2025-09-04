@@ -28,13 +28,23 @@ export function formatSearch(input: string): string {
 
   const searchEngineData = store('searchEngine') as SearchEngineData
 
-  switch (searchEngineData.engine) {
+  if (searchEngineData?.engine === 'custom' && searchEngineData.url) {
+    const template = searchEngineData.url
+    if (template.includes('%s')) {
+      return new URL(template.replace('%s', encodeURIComponent(input))).toString()
+    } else {
+      return new URL(`${template}${encodeURIComponent(input)}`).toString()
+    }
+  }
+
+  switch (searchEngineData?.engine) {
     case 'duckduckgo':
-      return new URL(`https://duckduckgo.com/?q=${input}`).toString()
+      return new URL(`https://duckduckgo.com/?q=${encodeURIComponent(input)}`).toString()
     case 'ecosia':
-      return new URL(`https://www.ecosia.org/search?q=${input}`).toString()
+      return new URL(`https://www.ecosia.org/search?q=${encodeURIComponent(input)}`).toString()
+    case 'google':
     default:
-      return new URL(`https://google.com/search?q=${input}`).toString()
+      return new URL(`https://google.com/search?q=${encodeURIComponent(input)}`).toString()
   }
 }
 

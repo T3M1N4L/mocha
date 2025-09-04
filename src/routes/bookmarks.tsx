@@ -10,7 +10,7 @@ export default function Bookmarks() {
       {bookmarks().map((bookmark) => {
         return (
           // biome-ignore lint: Doesn't accept keys for some reason
-          <div class="flex justify-between items-center bg-base-200 hover:bg-base-300 duration-200 h-12 w-full sm:w-[40rem] rounded-box px-6 group">
+          <div class="flex justify-between items-center bg-base-200 hover:bg-base-300 duration-200 h-12 w-full sm:w-[40rem] rounded-box px-6 group border border-base-300">
             <div class="flex items-center gap-4">
               <img alt={bookmark.title} src={bookmark.image} class="h-6 w-6 rounded-md" />
               <p

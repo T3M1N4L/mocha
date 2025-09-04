@@ -22,7 +22,7 @@ export default function Home() {
           </svg>
           <h1 class="text-5xl font-semibold">Mocha</h1>
         </div>
-        <div class="join w-1/3">
+        <div class="join w-1/3 border border-base-300 rounded-btn">
           <input
             onKeyPress={(e) => {
               if (e.key !== 'Enter') return
@@ -32,21 +32,22 @@ export default function Home() {
             onInput={(e) => setQuery(e.target.value)}
             placeholder="Enter a search query or URL"
             type="text"
-            class="input join-item w-full bg-base-300"
+            class="input join-item w-full bg-base-200 border-0 focus:outline-none focus:ring-0 focus:border-transparent"
           />
-          <button class="btn btn-square join-item bg-base-300 border-none" type="button" onClick={processInput}>
+          <button class="btn btn-square join-item bg-base-200 border-none" type="button" onClick={processInput}>
             <Search class="h-5 w-5" />
           </button>
         </div>
       </div>
 
-      <div class="absolute bottom-0 flex w-screen items-center justify-between p-4 px-6 text-sm">
+      <div class=" commit-info absolute bottom-0 flex w-screen items-center justify-between p-4 px-6 text-sm">
         <div class="flex gap-4">
           <div class="flex items-center gap-2">
             <GitCommitHorizontal />
             <A class="link-hover link" target="_blank" href={`https://github.com/t3m1n4l/mocha/commit/${__GIT_COMMIT__}/`}>
               {__GIT_COMMIT__.slice(0, 7)}
             </A>
+             - {__GIT_MESSAGE__}
           </div>
         </div>
       </div>

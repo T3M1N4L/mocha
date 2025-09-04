@@ -145,7 +145,7 @@ export default function Route() {
         title="Viewer"
       />
 
-      <div class={clsx('rounded-m join fixed left-1/2 z-40 -translate-x-1/2 bg-base-200 px-2 transition-[bottom] duration-300', showControls() ? 'bottom-2' : '-bottom-16')}>
+      <div class={clsx('rounded-m join fixed left-1/2 z-40 -translate-x-1/2 bg-base-200 px-2 border border-base-300 transition-[bottom] duration-300', showControls() ? 'bottom-2' : '-bottom-16')}>
         <div class="tooltip" data-tip="Go back">
           <button
             class="btn btn-square join-item bg-base-200"
