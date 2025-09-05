@@ -13,7 +13,7 @@ const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
 const blacklist = {};
 
-fetch('{{route}}{{/public/blocklist/blocklist.json}}').then((request) => {
+fetch('/blocklist/blocklist.json').then((request) => {
   request.json().then((jsonData) => {
     jsonData.forEach((domain) => {
       const domainTld = domain.replace(/.+(?=\.\w)/, '');
