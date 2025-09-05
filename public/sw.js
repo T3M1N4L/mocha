@@ -8,10 +8,16 @@ self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
 })
 
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim())
+})
+
 const uv = new UVServiceWorker()
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
 const blacklist = {};
+
+let adblockEnabled = true;
 
 fetch('/blocklist/blocklist.json').then((request) => {
   request.json().then((jsonData) => {
@@ -53,6 +59,7 @@ self.addEventListener('fetch', (event) => {
           const domain = targetUrl.hostname;
           const domainTld = domain.replace(/.+(?=\.\w)/, '');
           if (
+            adblockEnabled &&
             blacklist.hasOwnProperty(domainTld) &&
             blacklist[domainTld].test(domain.slice(0, -domainTld.length))
           ) {
@@ -71,6 +78,7 @@ self.addEventListener('fetch', (event) => {
           const domain = targetUrl.hostname;
           const domainTld = domain.replace(/.+(?=\.\w)/, '');
           if (
+            adblockEnabled &&
             blacklist.hasOwnProperty(domainTld) &&
             blacklist[domainTld].test(domain.slice(0, -domainTld.length))
           ) {
@@ -84,14 +92,16 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-self.addEventListener('fetch', (event) => {
-  event.respondWith(handleRequest(event));
-});
 
 let playgroundData;
 self.addEventListener('message', (event) => {
   if (event.data.type === 'playgroundData') {
     playgroundData = event.data;
+  } else if (event.data.type === 'setAdblockEnabled') {
+    adblockEnabled = !!event.data.enabled;
+    try {
+      event.ports && event.ports[0] && event.ports[0].postMessage({ ok: true, enabled: adblockEnabled });
+    } catch (e) {}
   } else if (event.data.type === 'requestAC') {
     const requestPort = event.ports[0];
     requestPort.addEventListener('message', async (event) => {

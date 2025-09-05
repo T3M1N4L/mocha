@@ -28,6 +28,7 @@ export default function Settings() {
   const [debug, setDebug] = createSignal('disabled')
   
   const [devtools, setDevtools] = createSignal('enabled')
+  const [adblock, setAdblock] = createSignal('enabled')
 
   const [transport, setTransport] = createSignal('epoxy')
   const [wispUrl, setWispUrl] = createSignal(DEFAULT_WISP_URL)
@@ -94,6 +95,11 @@ export default function Settings() {
     const devtoolsData = store.local.get('devtools') as DevtoolsData
     setDevtools(devtoolsData?.enabled ? 'enabled' : 'disabled')
 
+    const adblockData = store.local.get('adblock') as { enabled: boolean }
+    setAdblock(adblockData?.enabled ? 'enabled' : 'disabled')
+    // Ensure SW reflects current setting immediately on load
+    syncAdblockToSW(adblock() === 'enabled')
+ 
     const transportData = store.local.get('transport') as TransportData
     if (transportData?.transport) setTransport(transportData.transport)
 
@@ -134,6 +140,18 @@ export default function Settings() {
     if (proxyEngineData && proxyEngineData.engine) setProxyEngine(proxyEngineData.engine)
   })
 
+  async function syncAdblockToSW(enabled: boolean) {
+    try {
+      if (!('serviceWorker' in navigator)) return;
+      const reg = await navigator.serviceWorker.ready.catch(() => undefined);
+      const sw = navigator.serviceWorker.controller || reg?.active;
+      if (sw) {
+        const channel = new MessageChannel();
+        sw.postMessage({ type: 'setAdblockEnabled', enabled }, [channel.port2]);
+      }
+    } catch (e) {}
+  }
+
   function save() {
     store.local.set('tab', {
       name: tabName(),
@@ -159,6 +177,10 @@ export default function Settings() {
 
     store.local.set('devtools', {
       enabled: devtools() === 'enabled'
+    })
+
+    store.local.set('adblock', {
+      enabled: adblock() === 'enabled'
     })
 
     store.local.set('transport', {
@@ -189,6 +211,7 @@ export default function Settings() {
     handleDebug()
     handleTheme()
     handleTransport()
+    syncAdblockToSW(adblock() === 'enabled')
 
     toast.custom(() => {
       return (
@@ -214,6 +237,11 @@ export default function Settings() {
 
   createEffect(() => {
     if (moreInfoVisibility()) moreInfo.showModal()
+  })
+
+  // Keep SW in sync whenever Adblock setting changes (no need to hit Save)
+  createEffect(() => {
+    syncAdblockToSW(adblock() === 'enabled')
   })
 
   return (
@@ -340,6 +368,19 @@ export default function Settings() {
           >
             <CircleHelp class="h-5 w-5" />
           </span>
+        </div>
+
+        <div class="flex group relative w-80 flex-col items-center gap-4 rounded-box bg-base-200 p-4 border border-base-300">
+          <h1 class="text-2xl font-semibold">Adblock</h1>
+          <p class="text-center text-xs">Enable or disable request blocking</p>
+          <select
+            class="select select-bordered w-full max-w-xs"
+            value={adblock()}
+            onChange={(e) => setAdblock((e.target as HTMLSelectElement).value)}
+          >
+            <option value="enabled">Enabled</option>
+            <option value="disabled">Disabled</option>
+          </select>
         </div>
 
         <div class="collapse collapse-arrow">
@@ -474,6 +515,7 @@ export default function Settings() {
             setTheme('amoled')
             setDebug('disabled')
             setDevtools('enabled')
+            setAdblock('enabled')
             setTransport('epoxy')
             setWispUrl(DEFAULT_WISP_URL)
             setSearchEngine('google')

@@ -50,6 +50,10 @@ seed('devtools', {
   enabled: true
 })
 
+seed('adblock', {
+  enabled: true
+})
+
 seed('transport', {
   transport: 'epoxy'
 })
