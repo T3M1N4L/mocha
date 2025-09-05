@@ -8,7 +8,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
 })
 
-const sw = new UVServiceWorker()
+const uv = new UVServiceWorker()
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
 const blacklist = {};
@@ -61,11 +61,11 @@ self.addEventListener('fetch', (event) => {
         } catch (e) {}
         return scramjet.fetch(event);
       }
-      if (event.request.url.startsWith(location.origin + __uv$config.prefix)) {
+      if (uv.route(event)) {
         try {
           const targetUrl = new URL(
-            sw.config.decodeUrl(
-              new URL(event.request.url).pathname.replace(sw.config.prefix, '')
+            uv.config.decodeUrl(
+              new URL(event.request.url).pathname.replace(uv.config.prefix, '')
             )
           );
           const domain = targetUrl.hostname;
@@ -77,9 +77,47 @@ self.addEventListener('fetch', (event) => {
             return new Response(new Blob(), { status: 406 }); // Blocked
           }
         } catch (e) {}
-        return await sw.fetch(event);
+        return await uv.fetch(event);
       }
       return await fetch(event.request);
     })()
   );
+});
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(handleRequest(event));
+});
+
+let playgroundData;
+self.addEventListener('message', (event) => {
+  if (event.data.type === 'playgroundData') {
+    playgroundData = event.data;
+  } else if (event.data.type === 'requestAC') {
+    const requestPort = event.ports[0];
+    requestPort.addEventListener('message', async (event) => {
+      const response = await scramjet.fetch(event.data);
+      const responseType = response.headers.get('content-type');
+      let responseJSON = {};
+      if (responseType && responseType.indexOf('application/json') !== -1)
+        responseJSON = await response.json();
+      else
+        try {
+          responseJSON = await response.text();
+          try {
+            responseJSON = JSON.parse(responseJSON);
+          } catch (e) {
+            responseJSON = JSON.parse(
+              responseJSON.replace(/^[^[{]*|[^\]}]*$/g, '')
+            );
+          }
+        } catch (e) {
+        }
+      requestPort.postMessage({
+        responseJSON: responseJSON,
+        searchType: event.data.type,
+        time: event.data.request.headers.get('Date'),
+      });
+    });
+    requestPort.start();
+  }
 });
