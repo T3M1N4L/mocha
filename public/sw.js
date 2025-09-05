@@ -3,6 +3,8 @@ importScripts('/latte/uv.config.js')
 importScripts("/matcha/scramjet.all.js");
 importScripts(__uv$config.sw || '/latte/uv.sw.js')
 importScripts('/workerware/workerware.js')
+importScripts('/adblock.js')
+
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
@@ -39,6 +41,12 @@ fetch('/blocklist/blocklist.json').then((request) => {
 });
 
 const ww = new WorkerWare({})
+ww.use({
+  function: self.adblockExt.filterRequest,
+  events: ["fetch"],
+  name: "Adblock",
+})
+
 
 self.addEventListener('fetch', (event) => {
   event.respondWith(
