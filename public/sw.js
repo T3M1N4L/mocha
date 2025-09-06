@@ -42,7 +42,6 @@ fetch('/blocklist/blocklist.json').then((request) => {
 
 const ww = new WorkerWare({});
 
-// Helper to toggle Workerware Adblock middleware based on setting
 function applyWWAdblockMiddleware(enabled) {
   const exists = ww.get().some((mw) => mw.name === "Adblock");
   if (enabled) {
@@ -58,10 +57,8 @@ function applyWWAdblockMiddleware(enabled) {
   }
 }
 
-// Initialize middleware based on current flag
 applyWWAdblockMiddleware(adblockEnabled);
 
-// Listen for settings updates from UI
 self.addEventListener("message", (event) => {
   const data = event?.data;
   if (data && data.type === "setAdblockEnabled") {
