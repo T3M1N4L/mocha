@@ -40,18 +40,40 @@ fetch('/blocklist/blocklist.json').then((request) => {
   });
 });
 
-const ww = new WorkerWare({
-  debug: true,
-  randomNames: false,
-  timing: false
+const ww = new WorkerWare({});
+
+// Helper to toggle Workerware Adblock middleware based on setting
+function applyWWAdblockMiddleware(enabled) {
+  const exists = ww.get().some((mw) => mw.name === "Adblock");
+  if (enabled) {
+    if (!exists && self?.adblockExt?.filterRequest) {
+      ww.use({
+        function: self.adblockExt.filterRequest,
+        events: ["fetch"],
+        name: "Adblock",
+      });
+    }
+  } else {
+    if (exists) ww.deleteByName("Adblock");
+  }
+}
+
+// Initialize middleware based on current flag
+applyWWAdblockMiddleware(adblockEnabled);
+
+// Listen for settings updates from UI
+self.addEventListener("message", (event) => {
+  const data = event?.data;
+  if (data && data.type === "setAdblockEnabled") {
+    adblockEnabled = !!data.enabled;
+    applyWWAdblockMiddleware(adblockEnabled);
+    if (event.ports && event.ports[0]) {
+      try {
+        event.ports[0].postMessage({ ok: true });
+      } catch (e) {}
+    }
+  }
 });
-
-ww.use({
-  function: self.adblockExt.filterRequest,
-  events: ["fetch"],
-  name: "Adblock",
-})
-
 
 self.addEventListener('fetch', (event) => {
   event.respondWith(
@@ -103,44 +125,4 @@ self.addEventListener('fetch', (event) => {
       return await fetch(event.request);
     })()
   );
-});
-
-
-let playgroundData;
-self.addEventListener('message', (event) => {
-  if (event.data.type === 'playgroundData') {
-    playgroundData = event.data;
-  } else if (event.data.type === 'setAdblockEnabled') {
-    adblockEnabled = !!event.data.enabled;
-    try {
-      event.ports && event.ports[0] && event.ports[0].postMessage({ ok: true, enabled: adblockEnabled });
-    } catch (e) {}
-  } else if (event.data.type === 'requestAC') {
-    const requestPort = event.ports[0];
-    requestPort.addEventListener('message', async (event) => {
-      const response = await scramjet.fetch(event.data);
-      const responseType = response.headers.get('content-type');
-      let responseJSON = {};
-      if (responseType && responseType.indexOf('application/json') !== -1)
-        responseJSON = await response.json();
-      else
-        try {
-          responseJSON = await response.text();
-          try {
-            responseJSON = JSON.parse(responseJSON);
-          } catch (e) {
-            responseJSON = JSON.parse(
-              responseJSON.replace(/^[^[{]*|[^\]}]*$/g, '')
-            );
-          }
-        } catch (e) {
-        }
-      requestPort.postMessage({
-        responseJSON: responseJSON,
-        searchType: event.data.type,
-        time: event.data.request.headers.get('Date'),
-      });
-    });
-    requestPort.start();
-  }
 });
