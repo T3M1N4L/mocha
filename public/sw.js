@@ -42,6 +42,39 @@ fetch('/blocklist/blocklist.json').then((request) => {
 
 const ww = new WorkerWare({});
 
+const SETTINGS_CACHE = 'mocha-settings-v1';
+
+async function persistAdblockSetting(enabled) {
+  try {
+    const cache = await caches.open(SETTINGS_CACHE);
+    await cache.put(
+      'adblock-setting',
+      new Response(JSON.stringify({ enabled }), { headers: { 'content-type': 'application/json' } })
+    );
+  } catch (e) {}
+}
+
+async function loadAdblockSetting() {
+  try {
+    const cache = await caches.open(SETTINGS_CACHE);
+    const res = await cache.match('adblock-setting');
+    if (!res) return null;
+    const data = await res.json().catch(() => ({}));
+    return typeof data?.enabled === 'boolean' ? !!data.enabled : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+loadAdblockSetting()
+  .then((val) => {
+    if (val !== null) {
+      adblockEnabled = val;
+      try { applyWWAdblockMiddleware(adblockEnabled); } catch (e) {}
+    }
+  })
+  .catch(() => {});
+
 function applyWWAdblockMiddleware(enabled) {
   const exists = ww.get().some((mw) => mw.name === "Adblock");
   if (enabled) {
@@ -63,7 +96,14 @@ self.addEventListener("message", (event) => {
   const data = event?.data;
   if (data && data.type === "setAdblockEnabled") {
     adblockEnabled = !!data.enabled;
+    if (!adblockEnabled) {
+      try { ww.deleteByName("Adblock"); } catch (e) {}
+    }
+
     applyWWAdblockMiddleware(adblockEnabled);
+
+    persistAdblockSetting(adblockEnabled);
+
     if (event.ports && event.ports[0]) {
       try {
         event.ports[0].postMessage({ ok: true });
