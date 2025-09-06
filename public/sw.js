@@ -40,7 +40,12 @@ fetch('/blocklist/blocklist.json').then((request) => {
   });
 });
 
-const ww = new WorkerWare({})
+const ww = new WorkerWare({
+  debug: true,
+  randomNames: false,
+  timing: false
+});
+
 ww.use({
   function: self.adblockExt.filterRequest,
   events: ["fetch"],
