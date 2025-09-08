@@ -24,6 +24,7 @@ export default function Settings() {
   const [aboutBlank, setAboutBlank] = createSignal('disabled')
 
   const [theme, setTheme] = createSignal('default')
+  const [themeOpen, setThemeOpen] = createSignal(false)
 
   const [debug, setDebug] = createSignal('disabled')
   
@@ -45,17 +46,19 @@ export default function Settings() {
   const [searchPresets, setSearchPresets] = createSignal<{ name: string; url: string }[]>([
     { name: 'Google', url: 'https://google.com/search?q=%s' },
     { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=%s' },
-    { name: 'Ecosia', url: 'https://www.ecosia.org/search?q=%s' }
+    { name: 'Ecosia', url: 'https://www.ecosia.org/search?q=%s' },
+    { name: 'Bing', url: 'https://bing.com/search?q=%s' }
   ])
 
   const [cloakPresets, setCloakPresets] = createSignal<{ title: string; icon: string }[]>([
-    { title: 'Google', icon: '/google.png' }
+    { title: 'Google', icon: '/img/google.png' }
   ])
   const [searchPresetName, setSearchPresetName] = createSignal('Custom')
   const [cloakPresetTitle, setCloakPresetTitle] = createSignal('Google')
-  const [cloakPresetIcon, setCloakPresetIcon] = createSignal('/google.png')
+  const [cloakPresetIcon, setCloakPresetIcon] = createSignal('/img/google.png')
 
   const [proxyEngine, setProxyEngine] = createSignal<'uv' | 'scramjet'>('uv')
+  const [proxyOpen, setProxyOpen] = createSignal(false)
 
   const [moreInfoTitle, setMoreInfoTitle] = createSignal('')
   const [moreInfoContent, setMoreInfoContent] = createSignal('')
@@ -288,10 +291,31 @@ export default function Settings() {
         <div class="flex relative group w-80 flex-col items-center gap-4 rounded-box bg-base-200 p-4 border border-base-300">
           <h1 class="text-2xl font-semibold">about:blank</h1>
           <p class="text-center text-xs">Open Mocha in an about:blank tab automatically</p>
-          <select class="select select-bordered w-full max-w-xs" value={aboutBlank()} onChange={(e) => setAboutBlank(e.target.value)}>
-            <option value="enabled">Enabled</option>
-            <option value="disabled">Disabled</option>
-          </select>
+          <div class="relative w-full max-w-xs">
+            <div class="grid grid-cols-2 rounded-box border border-base-300 bg-base-200 relative p-1">
+              <div
+                class={
+                  aboutBlank() === 'enabled'
+                    ? 'absolute top-1 bottom-1 left-1/2 right-1 rounded-box bg-base-content transition-all z-0'
+                    : 'absolute top-1 bottom-1 left-1 right-1/2 rounded-box bg-base-content transition-all z-0'
+                }
+              />
+              <button
+                type="button"
+                class={`btn btn-ghost flex-1 z-10 rounded-box ${aboutBlank() === 'disabled' ? 'text-base-100' : 'text-base-content'}`}
+                onClick={() => setAboutBlank('disabled')}
+              >
+                Disabled
+              </button>
+              <button
+                type="button"
+                class={`btn btn-ghost flex-1 z-10 rounded-box ${aboutBlank() === 'enabled' ? 'text-base-100' : 'text-base-content'}`}
+                onClick={() => setAboutBlank('enabled')}
+              >
+                Enabled
+              </button>
+            </div>
+          </div>
 
           <span
             class="absolute top-2.5 right-2.5 text-base-content/50 opacity-0 group-hover:opacity-100 duration-150 cursor-pointer"
@@ -308,12 +332,44 @@ export default function Settings() {
         <div class="flex group relative w-80 flex-col items-center gap-4 rounded-box bg-base-200 p-4 border border-base-300">
           <h1 class="text-2xl font-semibold">Theme</h1>
           <p class="text-center text-xs">Change the styling of Mocha's UI</p>
-          <select class="select select-bordered w-full max-w-xs" value={theme()} onChange={(e) => setTheme(e.target.value)}>
-            {themes.map((item, index) => {
-              // biome-ignore lint: it doesn't accept a key for some reason
-              return <option value={item}>{index === 0 ? 'default' : item.charAt(0).toUpperCase() + item.slice(1)}</option>
-            })}
-          </select>
+          <div class="relative w-full max-w-xs">
+            <button
+              type="button"
+              class="select select-bordered w-full flex items-center justify-between"
+              onClick={() => setThemeOpen(!themeOpen())}
+              onBlur={() => setThemeOpen(false)}
+            >
+              <span class="capitalize">
+                {theme() === 'default' ? 'default' : theme().charAt(0).toUpperCase() + theme().slice(1)}
+              </span>
+            </button>
+            {themeOpen() && (
+              <ul
+                class="absolute left-0 top-full mt-1 z-50 w-full menu bg-base-200 border border-base-300 rounded-box shadow-lg"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                {themes.map((item) => {
+                  return (
+                    <li>
+                      <button
+                        type="button"
+                        class="flex items-center gap-2 hover:bg-base-300 w-full text-left px-3 py-2"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setTheme(item)
+                          setThemeOpen(false)
+                        }}
+                      >
+                        <span class="capitalize">
+                          {item === 'default' ? 'default' : item.charAt(0).toUpperCase() + item.slice(1)}
+                        </span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
 
           <span
             class="absolute top-2.5 right-2.5 text-base-content/50 opacity-0 group-hover:opacity-100 duration-150 cursor-pointer"
@@ -349,14 +405,58 @@ export default function Settings() {
         <div class="flex group relative w-80 flex-col items-center gap-4 rounded-box bg-base-200 p-4 border border-base-300">
           <h1 class="text-2xl font-semibold">Proxy Engine</h1>
           <p class="text-center text-xs">Switch between UV and Scramjet</p>
-          <select
-            class="select select-bordered w-full max-w-xs"
-            value={proxyEngine()}
-            onChange={(e) => setProxyEngine((e.target as HTMLSelectElement).value as 'uv' | 'scramjet')}
-          >
-            <option value="uv">UV</option>
-            <option value="scramjet">Scramjet</option>
-          </select>
+          <div class="relative w-full max-w-xs">
+            <button
+              type="button"
+              class="select select-bordered w-full flex items-center gap-2 justify-between"
+              onClick={() => setProxyOpen(!proxyOpen())}
+              onBlur={() => setProxyOpen(false)}
+            >
+              <span class="flex items-center gap-2">
+                <img
+                  src={proxyEngine() === 'uv' ? '/img/ultraviolet.png' : '/img/scramjet.png'}
+                  alt=""
+                  class="w-5 h-5"
+                />
+                <span>{proxyEngine() === 'uv' ? 'UV' : 'Scramjet'}</span>
+              </span>
+            </button>
+            {proxyOpen() && (
+              <ul
+                class="absolute left-0 top-full mt-1 z-50 w-full menu bg-base-200 border border-base-300 rounded-box shadow-lg"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <li>
+                  <button
+                    type="button"
+                    class="flex items-center gap-2 hover:bg-base-300"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setProxyEngine('uv')
+                      setProxyOpen(false)
+                    }}
+                  >
+                    <img src="/img/ultraviolet.png" alt="" class="w-5 h-5" />
+                    <span>UV</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    class="flex items-center gap-2 hover:bg-base-300"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setProxyEngine('scramjet')
+                      setProxyOpen(false)
+                    }}
+                  >
+                    <img src="/img/scramjet.png" alt="" class="w-5 h-5" />
+                    <span>Scramjet</span>
+                  </button>
+                </li>
+              </ul>
+            )}
+          </div>
 
           <span
             class="absolute top-2.5 right-2.5 text-base-content/50 opacity-0 group-hover:opacity-100 duration-150 cursor-pointer"
@@ -373,14 +473,31 @@ export default function Settings() {
         <div class="flex group relative w-80 flex-col items-center gap-4 rounded-box bg-base-200 p-4 border border-base-300">
           <h1 class="text-2xl font-semibold">Adblock</h1>
           <p class="text-center text-xs">Enable or disable request blocking</p>
-          <select
-            class="select select-bordered w-full max-w-xs"
-            value={adblock()}
-            onChange={(e) => setAdblock((e.target as HTMLSelectElement).value)}
-          >
-            <option value="enabled">Enabled</option>
-            <option value="disabled">Disabled</option>
-          </select>
+          <div class="relative w-full max-w-xs">
+            <div class="grid grid-cols-2 rounded-box border border-base-300 bg-base-200 relative p-1">
+              <div
+                class={
+                  adblock() === 'enabled'
+                    ? 'absolute top-1 bottom-1 left-1/2 right-1 rounded-box bg-base-content transition-all z-0'
+                    : 'absolute top-1 bottom-1 left-1 right-1/2 rounded-box bg-base-content transition-all z-0'
+                }
+              />
+              <button
+                type="button"
+                class={`btn btn-ghost flex-1 z-10 rounded-box ${adblock() === 'disabled' ? 'text-base-100' : 'text-base-content'}`}
+                onClick={() => setAdblock('disabled')}
+              >
+                Disabled
+              </button>
+              <button
+                type="button"
+                class={`btn btn-ghost flex-1 z-10 rounded-box ${adblock() === 'enabled' ? 'text-base-100' : 'text-base-content'}`}
+                onClick={() => setAdblock('enabled')}
+              >
+                Enabled
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="collapse collapse-arrow">
@@ -391,10 +508,31 @@ export default function Settings() {
               <div class="flex group relative w-80 flex-col items-center gap-4 rounded-box bg-base-200 p-4 border border-base-300">
                 <h1 class="text-2xl font-semibold">Debug</h1>
                 <p class="text-center text-xs">Enable Eruda devtools (helps with debugging)</p>
-                <select class="select select-bordered w-full max-w-xs" value={debug()} onChange={(e) => setDebug(e.target.value)}>
-                  <option value="enabled">Enabled</option>
-                  <option value="disabled">Disabled</option>
-                </select>
+                <div class="relative w-full max-w-xs">
+                  <div class="grid grid-cols-2 rounded-box border border-base-300 bg-base-200 relative p-1">
+                    <div
+                      class={
+                        debug() === 'enabled'
+                          ? 'absolute top-1 bottom-1 left-1/2 right-1 rounded-box bg-base-content transition-all z-0'
+                          : 'absolute top-1 bottom-1 left-1 right-1/2 rounded-box bg-base-content transition-all z-0'
+                      }
+                    />
+                    <button
+                      type="button"
+                      class={`btn btn-ghost flex-1 z-10 rounded-box ${debug() === 'disabled' ? 'text-base-100' : 'text-base-content'}`}
+                      onClick={() => setDebug('disabled')}
+                    >
+                      Disabled
+                    </button>
+                    <button
+                      type="button"
+                      class={`btn btn-ghost flex-1 z-10 rounded-box ${debug() === 'enabled' ? 'text-base-100' : 'text-base-content'}`}
+                      onClick={() => setDebug('enabled')}
+                    >
+                      Enabled
+                    </button>
+                  </div>
+                </div>
 
                 <span
                   class="absolute top-2.5 right-2.5 text-base-content/50 opacity-0 group-hover:opacity-100 duration-150 cursor-pointer"
@@ -411,10 +549,31 @@ export default function Settings() {
               <div class="flex group relative w-80 flex-col items-center gap-4 rounded-box bg-base-200 p-4 border border-base-300">
                 <h1 class="text-2xl font-semibold">Proxy Devtools</h1>
                 <p class="text-center text-xs">Enable a devtools option inside the proxy</p>
-                <select class="select select-bordered w-full max-w-xs" value={devtools()} onChange={(e) => setDevtools(e.target.value)}>
-                  <option value="enabled">Enabled</option>
-                  <option value="disabled">Disabled</option>
-                </select>
+                <div class="relative w-full max-w-xs">
+                  <div class="grid grid-cols-2 rounded-box border border-base-300 bg-base-200 relative p-1">
+                    <div
+                      class={
+                        devtools() === 'enabled'
+                          ? 'absolute top-1 bottom-1 left-1/2 right-1 rounded-box bg-base-content transition-all z-0'
+                          : 'absolute top-1 bottom-1 left-1 right-1/2 rounded-box bg-base-content transition-all z-0'
+                      }
+                    />
+                    <button
+                      type="button"
+                      class={`btn btn-ghost flex-1 z-10 rounded-box ${devtools() === 'disabled' ? 'text-base-100' : 'text-base-content'}`}
+                      onClick={() => setDevtools('disabled')}
+                    >
+                      Disabled
+                    </button>
+                    <button
+                      type="button"
+                      class={`btn btn-ghost flex-1 z-10 rounded-box ${devtools() === 'enabled' ? 'text-base-100' : 'text-base-content'}`}
+                      onClick={() => setDevtools('enabled')}
+                    >
+                      Enabled
+                    </button>
+                  </div>
+                </div>
 
                 <span
                   class="absolute top-2.5 right-2.5 text-base-content/50 opacity-0 group-hover:opacity-100 duration-150 cursor-pointer"
@@ -698,6 +857,8 @@ export default function Settings() {
                         setSearchEngine('duckduckgo');
                       } else if (p.name === 'Ecosia') {
                         setSearchEngine('ecosia');
+                      } else if (p.name === 'Bing') {
+                        setSearchEngine('bing');
                       } else {
                         setSearchEngine('custom');
                         setSearchCustomUrl(p.url);
@@ -714,8 +875,20 @@ export default function Settings() {
                       })
                     }}
                   >
-                    <div class="flex-1 text-left whitespace-normal break-all">
-                      {p.name} — <span class="font-geist-mono ml-1">{p.url}</span>
+                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                      <img
+                        src={{
+                          Google: '/img/google.png',
+                          DuckDuckGo: '/img/duckduckgo.png',
+                          Ecosia: '/img/ecosia.png',
+                          Bing: '/img/bing.png'
+                        }[p.name] || '/globe.svg'}
+                        alt=""
+                        class="w-4 h-4 shrink-0"
+                      />
+                      <div class="text-left whitespace-normal break-all">
+                        {p.name} | <span class="font-geist-mono ml-1">{p.url}</span>
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -953,7 +1126,7 @@ export default function Settings() {
                   class="input input-bordered w-full"
                   value={cloakPresetIcon()}
                   onInput={(e) => setCloakPresetIcon((e.target as HTMLInputElement).value)}
-                  placeholder="Favicon URL (/google.png or https://...)"
+                  placeholder="Favicon URL (/img/google.png or https://...)"
                 />
                 <button
                   class="btn btn-outline border-base-300 h-12 min-h-12 px-4"

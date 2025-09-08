@@ -27,7 +27,7 @@ export interface ThemeData {
 }
 
 export interface SearchEngineData {
-  engine: 'google' | 'duckduckgo' | 'ecosia' | 'custom'
+  engine: 'google' | 'duckduckgo' | 'ecosia' | 'bing' | 'custom'
   /**
    * URL template or prefix for custom engines.
    * If it contains "%s", it will be replaced with the encoded query.

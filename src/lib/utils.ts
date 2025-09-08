@@ -42,6 +42,8 @@ export function formatSearch(input: string): string {
       return new URL(`https://duckduckgo.com/?q=${encodeURIComponent(input)}`).toString()
     case 'ecosia':
       return new URL(`https://www.ecosia.org/search?q=${encodeURIComponent(input)}`).toString()
+    case 'bing':
+      return new URL(`https://bing.com/search?q=${encodeURIComponent(input)}`).toString()
     case 'google':
     default:
       return new URL(`https://google.com/search?q=${encodeURIComponent(input)}`).toString()

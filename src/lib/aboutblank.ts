@@ -1,5 +1,5 @@
 import store from 'store2'
-import type { AboutBlankData } from './types'
+import type { AboutBlankData, TabData } from './types'
 
 export function handleAboutBlank() {
   const aboutblankData = store.local.get('aboutblank') as AboutBlankData
@@ -12,11 +12,17 @@ export function handleAboutBlank() {
 export function openAbWindow(src: string, redirect = true) {
   const tab = window.open('about:blank', '_blank')
   if (!tab) return
+  const tabData = store.local.get('tab') as TabData
+  const title = tabData?.name?.trim() || 'Google'
+  const icon = tabData?.icon?.trim() || '/img/google.png'
+
   const link = tab.document.createElement('link')
   link.rel = 'icon'
-  link.href = './google.png'
+  link.href = icon
   tab.document.head.appendChild(link)
-  tab.document.title = 'Google'
+
+  tab.document.title = title
+
   const iframe = tab.document.createElement('iframe')
   const stl = iframe.style
   stl.border = stl.outline = 'none'
