@@ -1,14 +1,14 @@
-- [] Gamium
-- [] Ambient-like shortcut cards
-- [] Better UI
-- [] socks5/tor routing like holy ubo for wisp
-- [] plugins
-- [] vertical tabs
-- [] custom themes
-- [] astro rewrite
-- [] fastify or whatevr
-- [] custom userscripts
-- [] nextdns
-- [] scramjet patches for hl/gl en for google (without breaking it completley lmao (not infinitley reloading and allat))
-- [] scramjet export browsing data
-- [] patches to suggest proxy type
+- [ ] Gamium
+- [ ] Ambient-like shortcut cards
+- [ ] Better UI
+- [ ] socks5/tor routing like holy ubo for wisp
+- [ ] plugins
+- [ ] vertical tabs
+- [ ] custom themes
+- [ ] astro rewrite
+- [ ] fastify or whatevr
+- [ ] custom userscripts
+- [ ] nextdns
+- [ ] scramjet patches for hl/gl en for google (without breaking it completley lmao (not infinitley reloading and allat))
+- [ ] scramjet export browsing data
+- [ ] patches to suggest proxy type
