@@ -38,6 +38,10 @@ seed('aboutblank', {
   enabled: false
 })
 
+seed('cloak', {
+  mode: 'none'
+})
+
 seed('theme', {
   theme: 'amoled'
 })

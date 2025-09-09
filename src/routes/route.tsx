@@ -4,7 +4,7 @@ import { Bookmark, ChevronLeft, ChevronRight, CircleAlert, FileCode, Home, Panel
 import { createEffect, createSignal, onMount } from 'solid-js'
 import toast from 'solid-toast'
 import store from 'store2'
-import { openAbWindow } from '../lib/aboutblank'
+import { openCloakWindow } from '../lib/aboutblank'
 import { handlePanicKey } from '../lib/panic'
 import { patches } from '../lib/patch'
 import { handleTransport } from '../lib/transport'
@@ -292,7 +292,7 @@ export default function Route() {
               if (!ref || !ref.contentWindow) return
               const contentWindow = ref.contentWindow as ContentWindow
 
-              openAbWindow(contentWindow.location.href, false)
+              openCloakWindow(contentWindow.location.href, false)
             }}
           >
             <SquareArrowOutUpRight class="h-5 w-5" />

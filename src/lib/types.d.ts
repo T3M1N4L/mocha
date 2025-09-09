@@ -14,6 +14,10 @@ export interface AboutBlankData {
   enabled: boolean
 }
 
+export interface CloakData {
+  mode: 'none' | 'aboutblank' | 'blob'
+}
+
 export interface TransportData {
   transport: keyof typeof transports
 }

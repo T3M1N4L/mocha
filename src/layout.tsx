@@ -2,7 +2,7 @@ import { type ParentProps, onCleanup, onMount } from 'solid-js'
 import { Toaster } from 'solid-toast'
 import Navbar from './components/navbar'
 
-import { handleAboutBlank } from './lib/aboutblank'
+import { handleCloaking } from './lib/aboutblank'
 import { handleTabCloak } from './lib/cloak'
 import { handlePanicKey } from './lib/panic'
 import { handleTheme } from './lib/theme'
@@ -15,7 +15,7 @@ export default function Layout(props: ParentProps) {
   onMount(async () => {
     handleTabCloak()
     handleTheme()
-    handleAboutBlank()
+    handleCloaking()
     setBookmarks(store('bookmarks') as Bookmark[])
     await setupProxy()
     document.addEventListener('keydown', handlePanicKey)

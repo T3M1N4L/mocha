@@ -1,16 +1,19 @@
 import { consola } from 'consola'
 import express from 'express'
 import httpProxy from 'http-proxy'
-import wisp from 'wisp-server-node'
+import { server as wisp, logging } from '@mercuryworkshop/wisp-js/server'
 import http from 'node:http'
 import path from 'node:path'
 import { build } from 'vite'
 import type { Socket } from 'node:net'
 
+logging.set_level(logging.NONE)
+
 const httpServer = http.createServer()
 const proxy = httpProxy.createProxyServer()
 
 const app = express()
+
 const port = process.env.PORT || 5555
 
 consola.start('Building frontend')

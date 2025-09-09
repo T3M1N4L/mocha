@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process'
 import { defineConfig, normalizePath } from 'vite'
 import solid from 'vite-plugin-solid'
-import wisp from 'wisp-server-node'
+import { server as wisp, logging } from "@mercuryworkshop/wisp-js/server";
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import path from 'node:path'
 import { dirname } from 'node:path'

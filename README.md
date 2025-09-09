@@ -18,7 +18,6 @@ The simplicity and power you expect from a web proxy.
 - [x] End-to-end encryption with Epoxy and Libcurl
 - [x] Site compatability alerts and suggestions
 - [ ] Script injections (Extensions)
-- [ ] Rammerhead
 
 ## Run locally
 
@@ -32,6 +31,3 @@ npm install
 # Build static files and start the server
 npm run start
 ```
-
-## Support us
-If you like Mocha and would like to support the development, you can donate to me [here](https://buymeacoffee.com/proudparrot2). It helps with server costs, domains, and otherwise financially supports me.

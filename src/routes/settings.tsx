@@ -4,7 +4,7 @@ import store from 'store2'
 import { handleTabCloak } from '../lib/cloak'
 import { handleDebug } from '../lib/debug'
 import { handleTheme, themes } from '../lib/theme'
-import type { DebugData, PanicData, TabData, ThemeData, TransportData, AboutBlankData, DevtoolsData, SearchEngineData, WispData } from '../lib/types'
+import type { DebugData, PanicData, TabData, ThemeData, TransportData, AboutBlankData, DevtoolsData, SearchEngineData, WispData, CloakData } from '../lib/types'
 
 import { CircleCheck, CircleHelp, Trash } from 'lucide-solid'
 import { exportData, importData, resetData } from '../lib/browsingdata'
@@ -21,7 +21,7 @@ export default function Settings() {
   const [panicKey, setPanicKey] = createSignal('')
   const [panicUrl, setPanicUrl] = createSignal('https://classroom.google.com/h')
 
-  const [aboutBlank, setAboutBlank] = createSignal('disabled')
+  const [cloakMode, setCloakMode] = createSignal<'none' | 'aboutblank' | 'blob'>('none')
 
   const [theme, setTheme] = createSignal('default')
   const [themeOpen, setThemeOpen] = createSignal(false)
@@ -82,11 +82,12 @@ export default function Settings() {
     if (panicData?.key) setPanicKey(panicData.key)
     if (panicData?.url) setPanicUrl(panicData.url)
 
-    const aboutblankData = store.local.get('aboutblank') as AboutBlankData
-    if (aboutblankData?.enabled) {
-      setAboutBlank('enabled')
+    const cloak = store.local.get('cloak') as CloakData
+    if (cloak?.mode) {
+      setCloakMode(cloak.mode)
     } else {
-      setAboutBlank('disabled')
+      const aboutblankData = store.local.get('aboutblank') as AboutBlankData
+      setCloakMode(aboutblankData?.enabled ? 'aboutblank' : 'none')
     }
 
     const themeData = store.local.get('theme') as ThemeData
@@ -166,9 +167,14 @@ export default function Settings() {
       url: panicUrl()
     })
 
+    store.local.set('cloak', {
+      mode: cloakMode()
+    } as CloakData)
+
+    // legacy compatibility for any remaining code reading 'aboutblank'
     store.local.set('aboutblank', {
-      enabled: aboutBlank() === 'enabled'
-    })
+      enabled: cloakMode() === 'aboutblank'
+    } as AboutBlankData)
 
     store.local.set('theme', {
       theme: theme()
@@ -289,30 +295,39 @@ export default function Settings() {
         </div>
 
         <div class="flex relative group w-80 flex-col items-center gap-4 rounded-box bg-base-200 p-4 border border-base-300">
-          <h1 class="text-2xl font-semibold">about:blank</h1>
-          <p class="text-center text-xs">Open Mocha in an about:blank tab automatically</p>
+          <h1 class="text-2xl font-semibold">Cloaking (AB & Blob)</h1>
+          <p class="text-center text-xs">Choose how Mocha opens in a disguised tab</p>
           <div class="relative w-full max-w-xs">
-            <div class="grid grid-cols-2 rounded-box border border-base-300 bg-base-200 relative p-1">
+            <div class="grid grid-cols-3 rounded-box border border-base-300 bg-base-200 relative p-1">
               <div
                 class={
-                  aboutBlank() === 'enabled'
-                    ? 'absolute top-1 bottom-1 left-1/2 right-1 rounded-box bg-base-content transition-all z-0'
-                    : 'absolute top-1 bottom-1 left-1 right-1/2 rounded-box bg-base-content transition-all z-0'
+                  cloakMode() === 'none'
+                    ? 'absolute top-1 bottom-1 left-1 right-[66.666%] rounded-box bg-base-content transition-all z-0'
+                    : cloakMode() === 'aboutblank'
+                      ? 'absolute top-1 bottom-1 left-[33.333%] right-[33.333%] rounded-box bg-base-content transition-all z-0'
+                      : 'absolute top-1 bottom-1 left-[66.666%] right-1 rounded-box bg-base-content transition-all z-0'
                 }
               />
               <button
                 type="button"
-                class={`btn btn-ghost flex-1 z-10 rounded-box ${aboutBlank() === 'disabled' ? 'text-base-100' : 'text-base-content'}`}
-                onClick={() => setAboutBlank('disabled')}
+                class={`btn btn-ghost flex-1 z-10 rounded-box ${cloakMode() === 'none' ? 'text-base-100' : 'text-base-content'}`}
+                onClick={() => setCloakMode('none')}
               >
-                Disabled
+                None
               </button>
               <button
                 type="button"
-                class={`btn btn-ghost flex-1 z-10 rounded-box ${aboutBlank() === 'enabled' ? 'text-base-100' : 'text-base-content'}`}
-                onClick={() => setAboutBlank('enabled')}
+                class={`btn btn-ghost flex-1 z-10 rounded-box ${cloakMode() === 'aboutblank' ? 'text-base-100' : 'text-base-content'}`}
+                onClick={() => setCloakMode('aboutblank')}
               >
-                Enabled
+                about:blank
+              </button>
+              <button
+                type="button"
+                class={`btn btn-ghost flex-1 z-10 rounded-box ${cloakMode() === 'blob' ? 'text-base-100' : 'text-base-content'}`}
+                onClick={() => setCloakMode('blob')}
+              >
+                Blob
               </button>
             </div>
           </div>
@@ -320,8 +335,8 @@ export default function Settings() {
           <span
             class="absolute top-2.5 right-2.5 text-base-content/50 opacity-0 group-hover:opacity-100 duration-150 cursor-pointer"
             onMouseDown={() => {
-              setMoreInfoTitle('about:blank')
-              setMoreInfoContent("about:blank tabs don't show up in your history and appear as system pages or pages that are still loading. Enabling this setting enables Mocha to automatically launch inside one of these tabs, and Mocha won't show up in your history.")
+              setMoreInfoTitle('Cloaking')
+              setMoreInfoContent("Choose how Mocha appears in a new tab: 'about:blank' hides history and looks like a system page; 'Blob' uses an in-memory HTML wrapper. Select 'None' to disable cloaking.")
               setMoreInfoVisiblity(true)
             }}
           >
@@ -670,7 +685,7 @@ export default function Settings() {
             setTabName('')
             setPanicKey('')
             setPanicUrl('https://classroom.google.com/h')
-            setAboutBlank('disabled')
+            setCloakMode('none')
             setTheme('amoled')
             setDebug('disabled')
             setDevtools('enabled')
