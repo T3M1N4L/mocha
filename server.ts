@@ -1,57 +1,76 @@
 import { consola } from 'consola'
-import express from 'express'
-import httpProxy from 'http-proxy'
+import Fastify from 'fastify'
+import fastifyStatic from '@fastify/static'
+import fastifyHttpProxy from '@fastify/http-proxy'
 import { server as wisp, logging } from '@mercuryworkshop/wisp-js/server'
 import http from 'node:http'
 import path from 'node:path'
 import { build } from 'vite'
+import { hostname } from 'node:os'
 import type { Socket } from 'node:net'
 
 logging.set_level(logging.NONE)
 
-const httpServer = http.createServer()
-const proxy = httpProxy.createProxyServer()
+const fastify = Fastify({
+  serverFactory: (handler) => {
+    return http
+      .createServer()
+      .on('request', (req, res) => {
+        handler(req, res)
+      })
+      .on('upgrade', (req, socket, head) => {
+        if (req.url?.startsWith('/wisp/')) {
+          wisp.routeRequest(req, socket as Socket, head)
+        } else {
+          socket.end()
+        }
+      })
+  },
+  logger: false
+})
 
-const app = express()
-
-const port = process.env.PORT || 5555
+const port = Number(process.env.PORT ?? 5555)
 
 consola.start('Building frontend')
 await build()
 
-app.use(express.static('dist'))
-
-app.use('/cdn', (req, res) => {
-  proxy.web(req, res, {
-    target: 'https://assets.3kh0.net',
-    changeOrigin: true,
-    // @ts-ignore
-    rewritePath: {
-      '^/cdn': ''
-    }
-  })
+fastify.register(fastifyStatic, {
+  root: path.resolve('dist'),
+  decorateReply: true
 })
 
-app.get('*', (_req, res) => {
-  res.sendFile(path.resolve('dist', 'index.html'))
+fastify.register(fastifyHttpProxy, {
+  upstream: 'https://assets.3kh0.net',
+  prefix: '/cdn',
+  rewritePrefix: ''
 })
 
-httpServer.on('request', (req, res) => {
-  app(req, res)
+fastify.setNotFoundHandler((req, reply) => {
+  return reply.code(200).type('text/html').sendFile('index.html')
 })
 
-httpServer.on('upgrade', (req, socket, head) => {
-  if (req.url?.startsWith('/wisp/')) {
-    wisp.routeRequest(req, socket as Socket, head)
-  } else {
-    socket.end()
+// Log bound addresses when server is listening
+fastify.server.on('listening', () => {
+  const address = fastify.server.address() as any
+  if (address && typeof address === 'object') {
+    consola.info('Listening on:')
+    consola.info(`\thttp://localhost:${address.port}`)
+    consola.info(`\thttp://${hostname()}:${address.port}`)
+    consola.info(
+      `\thttp://${address.family === 'IPv6' ? `[${address.address}]` : address.address}:${address.port}`
+    )
   }
 })
 
-httpServer.on('listening', () => {
-  consola.info(`Listening on http://localhost:${port}`)
-})
+function shutdown() {
+  consola.info('SIGTERM signal received: closing HTTP server')
+  fastify.close().finally(() => process.exit(0))
+}
 
-httpServer.listen({
-  port
+process.on('SIGINT', shutdown)
+process.on('SIGTERM', shutdown)
+
+await fastify.listen({
+  port,
+  host: '0.0.0.0'
 })
