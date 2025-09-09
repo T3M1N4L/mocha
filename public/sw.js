@@ -19,7 +19,7 @@ const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
 const blacklist = {};
 
-let adblockEnabled = true;
+let adblockEnabled = false;
 
 fetch('/blocklist/blocklist.json').then((request) => {
   request.json().then((jsonData) => {
@@ -115,6 +115,16 @@ self.addEventListener("message", (event) => {
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     (async () => {
+      // Sync latest persisted adblock setting before running any middleware
+      try {
+        const latest = await loadAdblockSetting();
+        if (latest !== null && latest !== adblockEnabled) {
+          adblockEnabled = latest;
+          try { applyWWAdblockMiddleware(adblockEnabled); } catch (e) {}
+        }
+      } catch (e) {}
+
+      // Always run WorkerWare; Adblock is just one middleware among others.
       let mwResponse = await ww.run(event)();
       if (mwResponse.includes(null)) {
         return;

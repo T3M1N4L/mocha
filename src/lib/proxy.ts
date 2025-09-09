@@ -30,8 +30,17 @@ export async function setupProxy() {
         })
       })
 
-      navigator.serviceWorker.ready.then(async () => {
+      navigator.serviceWorker.ready.then(async (registration) => {
         console.log('Service worker ready')
+        try {
+          const adblockData = store.local.get('adblock') as { enabled: boolean };
+          const enabled = !!adblockData?.enabled;
+          const sw = navigator.serviceWorker.controller || registration.active;
+          if (sw) {
+            const channel = new MessageChannel();
+            sw.postMessage({ type: 'setAdblockEnabled', enabled }, [channel.port2]);
+          }
+        } catch (e) {}
       })
     })
 

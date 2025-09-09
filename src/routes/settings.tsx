@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onMount } from 'solid-js'
+import { createEffect, createSignal, onMount, onCleanup } from 'solid-js'
 import toast from 'solid-toast'
 import store from 'store2'
 import { handleTabCloak } from '../lib/cloak'
@@ -137,16 +137,52 @@ export default function Settings() {
 
     const proxyEngineData = store.local.get('proxyEngine') as { engine: 'uv' | 'scramjet' }
     if (proxyEngineData && proxyEngineData.engine) setProxyEngine(proxyEngineData.engine)
+
+    // Re-sync Adblock setting to SW when controller changes (first control or after update)
+    if ('serviceWorker' in navigator) {
+      const handler = () => {
+        try { syncAdblockToSW(adblock() === 'enabled') } catch (e) {}
+      };
+      navigator.serviceWorker.addEventListener('controllerchange', handler);
+      onCleanup(() => {
+        try { navigator.serviceWorker.removeEventListener('controllerchange', handler) } catch (e) {}
+      });
+    }
   })
 
   async function syncAdblockToSW(enabled: boolean) {
     try {
       if (!('serviceWorker' in navigator)) return;
-      const reg = await navigator.serviceWorker.ready.catch(() => undefined);
-      const sw = navigator.serviceWorker.controller || reg?.active;
+
+      // Prefer the current controller (the SW controlling this page)
+      const ctrl = navigator.serviceWorker.controller;
+      if (ctrl) {
+        try {
+          const ch = new MessageChannel();
+          ctrl.postMessage({ type: 'setAdblockEnabled', enabled }, [ch.port2]);
+        } catch (_) {}
+      }
+
+      // Also inform any active registrations (covers cases before control changes)
+      const regs = await navigator.serviceWorker.getRegistrations().catch(() => []);
+      for (const reg of regs) {
+        const active = reg.active;
+        if (active) {
+          try {
+            const ch2 = new MessageChannel();
+            active.postMessage({ type: 'setAdblockEnabled', enabled }, [ch2.port2]);
+          } catch (_) {}
+        }
+      }
+
+      // Fallback: when 'ready' resolves, send again
+      const ready = await navigator.serviceWorker.ready.catch(() => undefined);
+      const sw = ready?.active;
       if (sw) {
-        const channel = new MessageChannel();
-        sw.postMessage({ type: 'setAdblockEnabled', enabled }, [channel.port2]);
+        try {
+          const ch3 = new MessageChannel();
+          sw.postMessage({ type: 'setAdblockEnabled', enabled }, [ch3.port2]);
+        } catch (_) {}
       }
     } catch (e) {}
   }
@@ -239,9 +275,14 @@ export default function Settings() {
     if (moreInfoVisibility()) moreInfo.showModal()
   })
 
-  // Keep SW in sync whenever Adblock setting changes (no need to hit Save)
+  // Keep SW in sync whenever Adblock setting changes (no need to hit Save).
+  // Also persist immediately so other parts of the app (like SW-ready bootstrap) see the latest state.
   createEffect(() => {
-    syncAdblockToSW(adblock() === 'enabled')
+    const enabled = adblock() === 'enabled'
+    try {
+      store.local.set('adblock', { enabled })
+    } catch (e) {}
+    syncAdblockToSW(enabled)
   })
 
   return (
@@ -410,7 +451,7 @@ export default function Settings() {
 
         <div class="flex group relative w-80 flex-col items-center gap-4 rounded-box bg-base-200 p-4 border border-base-300">
           <h1 class="text-2xl font-semibold">Proxy Engine</h1>
-          <p class="text-center text-xs">Switch between UV and Scramjet</p>
+          <p class="text-center text-xs">Switch the current engine</p>
           <div class="relative w-full max-w-xs">
             <button
               type="button"
@@ -504,6 +545,16 @@ export default function Settings() {
               </button>
             </div>
           </div>
+            <span
+            class="absolute top-2.5 right-2.5 text-base-content/50 opacity-0 group-hover:opacity-100 duration-150 cursor-pointer"
+            onMouseDown={() => {
+              setMoreInfoTitle('Adblock')
+              setMoreInfoContent("Block ads throguh alu-adblocker (which uses workerware), and a blocklist.json which is how holy-ubo does adblocking")
+              setMoreInfoVisiblity(true)
+            }}
+          >
+            <CircleHelp class="h-5 w-5" />
+          </span>
         </div>
 
         <div class="collapse collapse-arrow">
