@@ -1,7 +1,6 @@
 - [] Gamium
 - [] Ambient-like shortcut cards
 - [] Better UI
-- [X] wisp-js instead of wisp-node-server (or possible epoxy-tls)
 - [] socks5/tor routing like holy ubo for wisp
 - [] plugins
 - [] vertical tabs
@@ -10,7 +9,6 @@
 - [] fastify or whatevr
 - [] custom userscripts
 - [] nextdns
-- [] scramjet patches for hl/gl en for google
+- [] scramjet patches for hl/gl en for google (without breaking it completley lmao (not infinitley reloading and allat))
 - [] scramjet export browsing data
-- [] blob cloaking
 - [] patches to suggest proxy type

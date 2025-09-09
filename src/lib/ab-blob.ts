@@ -1,13 +1,5 @@
 import store from 'store2'
-import type { AboutBlankData, TabData, CloakData } from './types'
-
-export function handleAboutBlank() {
-  const aboutblankData = store.local.get('aboutblank') as AboutBlankData
-
-  if (aboutblankData?.enabled && window.self === window.top) {
-    openAbWindow(window.location.origin)
-  }
-}
+import type { TabData, CloakData } from './types'
 
 export function handleCloaking() {
   if (window.self !== window.top) return
@@ -20,24 +12,35 @@ export function handleCloaking() {
   } else if (mode === 'blob') {
     openBlobWindow(window.location.origin)
   } else {
-    const aboutblankData = store.local.get('aboutblank') as AboutBlankData
-    if (aboutblankData?.enabled) {
-      openAbWindow(window.location.origin)
-    }
+    // mode === 'none' or unset -> do nothing
   }
 }
 
-export function openBlobWindow(src: string, redirect = true) {
+// Convert any image URL to a data URI
+async function imageUrlToDataUri(url: string): Promise<string> {
+  const res = await fetch(url)
+  const blob = await res.blob()
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.readAsDataURL(blob)
+  })
+}
+
+export async function openBlobWindow(src: string, redirect = true) {
   const tabData = store.local.get('tab') as TabData
   const title = tabData?.name?.trim() || 'Google'
-  const icon = tabData?.icon?.trim() || '/img/google.png'
+  const iconUrl = tabData?.icon?.trim() || '/img/google.png'
+
+  // Convert icon image to data URI
+  const iconDataUri = await imageUrlToDataUri(iconUrl)
 
   const html = `
     <html>
       <head>
         <meta charset="utf-8" />
         <title>${title}</title>
-        <link rel="icon" href="${icon}" />
+        <link rel="icon" href="${iconDataUri}" />
         <style>
           html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; }
           iframe {
@@ -67,9 +70,11 @@ export function openCloakWindow(src: string, redirect = true) {
   const mode = cloak?.mode
   if (mode === 'aboutblank') return openAbWindow(src, redirect)
   if (mode === 'blob') return openBlobWindow(src, redirect)
-  // Default to about:blank (legacy behavior) when unset/none
-  return openAbWindow(src, redirect)
+  const tab = window.open(src, '_blank')
+  if (!tab) return
+  if (redirect) window.location.replace('https://classroom.google.com/h')
 }
+
 export function openAbWindow(src: string, redirect = true) {
   const tab = window.open('about:blank', '_blank')
   if (!tab) return

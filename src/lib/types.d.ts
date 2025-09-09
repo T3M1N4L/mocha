@@ -10,9 +10,6 @@ export interface PanicData {
   url: string | null
 }
 
-export interface AboutBlankData {
-  enabled: boolean
-}
 
 export interface CloakData {
   mode: 'none' | 'aboutblank' | 'blob'

@@ -34,9 +34,6 @@ seed('panic', {
   url: null
 })
 
-seed('aboutblank', {
-  enabled: false
-})
 
 seed('cloak', {
   mode: 'none'

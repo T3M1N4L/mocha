@@ -2,7 +2,7 @@ import { type ParentProps, onCleanup, onMount } from 'solid-js'
 import { Toaster } from 'solid-toast'
 import Navbar from './components/navbar'
 
-import { handleCloaking } from './lib/aboutblank'
+import { handleCloaking } from './lib/ab-blob'
 import { handleTabCloak } from './lib/cloak'
 import { handlePanicKey } from './lib/panic'
 import { handleTheme } from './lib/theme'

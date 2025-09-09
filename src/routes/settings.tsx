@@ -4,7 +4,7 @@ import store from 'store2'
 import { handleTabCloak } from '../lib/cloak'
 import { handleDebug } from '../lib/debug'
 import { handleTheme, themes } from '../lib/theme'
-import type { DebugData, PanicData, TabData, ThemeData, TransportData, AboutBlankData, DevtoolsData, SearchEngineData, WispData, CloakData } from '../lib/types'
+import type { DebugData, PanicData, TabData, ThemeData, TransportData, DevtoolsData, SearchEngineData, WispData, CloakData } from '../lib/types'
 
 import { CircleCheck, CircleHelp, Trash } from 'lucide-solid'
 import { exportData, importData, resetData } from '../lib/browsingdata'
@@ -83,12 +83,7 @@ export default function Settings() {
     if (panicData?.url) setPanicUrl(panicData.url)
 
     const cloak = store.local.get('cloak') as CloakData
-    if (cloak?.mode) {
-      setCloakMode(cloak.mode)
-    } else {
-      const aboutblankData = store.local.get('aboutblank') as AboutBlankData
-      setCloakMode(aboutblankData?.enabled ? 'aboutblank' : 'none')
-    }
+    setCloakMode(cloak?.mode ?? 'none')
 
     const themeData = store.local.get('theme') as ThemeData
     if (themeData?.theme) setTheme(themeData.theme)
@@ -171,10 +166,6 @@ export default function Settings() {
       mode: cloakMode()
     } as CloakData)
 
-    // legacy compatibility for any remaining code reading 'aboutblank'
-    store.local.set('aboutblank', {
-      enabled: cloakMode() === 'aboutblank'
-    } as AboutBlankData)
 
     store.local.set('theme', {
       theme: theme()

@@ -4,7 +4,7 @@ import { Bookmark, ChevronLeft, ChevronRight, CircleAlert, FileCode, Home, Panel
 import { createEffect, createSignal, onMount } from 'solid-js'
 import toast from 'solid-toast'
 import store from 'store2'
-import { openCloakWindow } from '../lib/aboutblank'
+import { openCloakWindow } from '../lib/ab-blob'
 import { handlePanicKey } from '../lib/panic'
 import { patches } from '../lib/patch'
 import { handleTransport } from '../lib/transport'
