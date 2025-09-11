@@ -10,6 +10,15 @@ export type PluginDefinition = {
   sites: string[] | ["*"];
 };
 
+export type PluginConfig = {
+  name: string;
+  displayName: string;
+  description: string;
+  sites: string[] | ["*"];
+  enabled: boolean;
+  function: string;
+};
+
 let apiSingleton: RefluxAPIType | null = null;
 
 export function getRefluxAPI(): RefluxAPIType {
@@ -65,6 +74,165 @@ export async function getEnabledPlugins(): Promise<string[]> {
   return list.filter((p) => p.enabled).map((p) => p.name);
 }
 
+// Load plugins from JSON configuration file
+export async function loadPluginsFromJSON(): Promise<PluginConfig[]> {
+  try {
+    const response = await fetch('/plugins.json');
+    if (!response.ok) {
+      console.warn('[RefluxPlugins] Failed to load plugins.json');
+      return [];
+    }
+    const data = await response.json();
+    return data.plugins || [];
+  } catch (error) {
+    console.error('[RefluxPlugins] Error loading plugins.json:', error);
+    return [];
+  }
+}
+
+// Save plugins to local storage (since we can't write to public files from browser)
+export function savePluginsToLocalStorage(plugins: PluginConfig[]): void {
+  try {
+    const dataToSave = {
+      plugins,
+      timestamp: Date.now()
+    };
+    localStorage.setItem('reflux-plugins', JSON.stringify(dataToSave));
+    console.log('[RefluxPlugins] Successfully saved plugins to localStorage');
+  } catch (error) {
+    console.error('[RefluxPlugins] Failed to save plugins to localStorage:', error);
+    throw new Error('Failed to save plugin configuration');
+  }
+}
+
+// Load plugins from local storage with fallback to JSON
+export async function loadPluginsConfig(): Promise<PluginConfig[]> {
+  try {
+    const stored = localStorage.getItem('reflux-plugins');
+    if (stored) {
+      const data = JSON.parse(stored);
+      // Handle both old and new format
+      const pluginsArray = data.plugins || data;
+      if (Array.isArray(pluginsArray)) {
+        console.log('[RefluxPlugins] Loaded plugins from localStorage');
+        return pluginsArray;
+      }
+    }
+  } catch (error) {
+    console.warn('[RefluxPlugins] Error loading from localStorage:', error);
+    // Clear corrupted localStorage data
+    try {
+      localStorage.removeItem('reflux-plugins');
+    } catch (clearError) {
+      console.warn('[RefluxPlugins] Failed to clear corrupted localStorage:', clearError);
+    }
+  }
+  
+  // Fallback to JSON file
+  console.log('[RefluxPlugins] Falling back to JSON file');
+  return loadPluginsFromJSON();
+}
+
+// Toggle plugin enabled state
+export async function togglePlugin(pluginName: string): Promise<boolean> {
+  try {
+    const plugins = await loadPluginsConfig();
+    const plugin = plugins.find(p => p.name === pluginName);
+    
+    if (!plugin) {
+      throw new Error(`Plugin ${pluginName} not found in configuration`);
+    }
+    
+    const newState = !plugin.enabled;
+    plugin.enabled = newState;
+    
+    // Save to localStorage first
+    savePluginsToLocalStorage(plugins);
+    
+    // Then update the actual plugin state in the API
+    try {
+      if (newState) {
+        // First ensure the plugin is added if it doesn't exist
+        const pluginDef: PluginDefinition = {
+          name: plugin.name,
+          sites: plugin.sites,
+          function: plugin.function
+        };
+        await addPlugin(pluginDef);
+        await enablePlugin(pluginName);
+        console.log(`[RefluxPlugins] Successfully enabled plugin: ${pluginName}`);
+      } else {
+        await disablePlugin(pluginName);
+        console.log(`[RefluxPlugins] Successfully disabled plugin: ${pluginName}`);
+      }
+      
+      // Reinitialize the plugin system to apply changes immediately
+      console.log(`[RefluxPlugins] Reinitializing plugin system after toggle...`);
+      await initDefaultPlugins();
+      
+    } catch (apiError) {
+      console.warn(`[RefluxPlugins] API update failed for ${pluginName}, but localStorage updated:`, apiError);
+      // Still try to reinitialize even if individual plugin operations failed
+      try {
+        await initDefaultPlugins();
+      } catch (initError) {
+        console.error(`[RefluxPlugins] Failed to reinitialize plugin system:`, initError);
+      }
+    }
+    
+    return newState;
+  } catch (error) {
+    console.error(`[RefluxPlugins] Failed to toggle plugin ${pluginName}:`, error);
+    throw error;
+  }
+}
+
+export async function initDefaultPlugins(): Promise<void> {
+  try {
+    const pluginsConfig = await loadPluginsConfig();
+    
+    // Get all currently loaded plugins from the API
+    const currentPlugins = await listPlugins().catch(() => []);
+    const currentPluginNames = currentPlugins.map(p => p.name);
+    
+    // Disable/remove plugins that should be disabled
+    const disabledPlugins = pluginsConfig.filter(p => !p.enabled);
+    for (const plugin of disabledPlugins) {
+      if (currentPluginNames.includes(plugin.name)) {
+        try {
+          await disablePlugin(plugin.name);
+          console.log(`[RefluxPlugins] Disabled plugin: ${plugin.name}`);
+        } catch (error) {
+          console.warn(`[RefluxPlugins] Failed to disable plugin ${plugin.name}:`, error);
+        }
+      }
+    }
+    
+    // Enable plugins that should be enabled
+    const enabledPlugins = pluginsConfig
+      .filter(p => p.enabled)
+      .map(p => ({
+        name: p.name,
+        sites: p.sites,
+        function: p.function
+      }));
+    
+    await ensurePlugins(enabledPlugins);
+    
+    const list = await listPlugins();
+    console.log("[RefluxPlugins] Plugin initialization complete. Currently loaded:", 
+      list.map(p => `${p.name} (${p.enabled ? 'enabled' : 'disabled'})`));
+  } catch (err) {
+    console.error("[RefluxPlugins] Initialization failed:", err);
+  }
+}
+
+// Force refresh the entire plugin system
+export async function refreshPluginSystem(): Promise<void> {
+  console.log("[RefluxPlugins] Force refreshing plugin system...");
+  await initDefaultPlugins();
+}
+
 export async function updatePluginSites(name: string, sites: string[] | ["*"]): Promise<void> {
   const api = getRefluxAPI();
   if (typeof (api as any).updatePluginSites === "function") {
@@ -104,142 +272,5 @@ export async function ensurePlugins(plugins: PluginDefinition[]): Promise<void> 
     if (!curr.enabled) {
       await enablePlugin(plugin.name);
     }
-  }
-}
-
-export const defaultPlugins: PluginDefinition[] = [
-  {
-    name: "com.example.logger",
-    sites: ["*"],
-    function: `
-/* @browser */
-try {
-  console.log('🚀 Example plugin executed on:', typeof url !== 'undefined' ? url : location?.href);
-  console.log('🚀 Plugin name:', typeof pluginName !== 'undefined' ? pluginName : 'com.example.logger');
-} catch (e) {
-  console.log('🚀 Example plugin executed (no url available)');
-}
-/* @/browser */
-    `.trim(),
-  },
-  {
-    name: "com.example.example-com-enhancer",
-    sites: ["example.com", "www.example.com"],
-    function: `
-/* @browser */
-console.log('🎯 Example.com plugin running on:', typeof url !== 'undefined' ? url : location?.href);
-function enhanceExampleCom() {
-  const h1Elements = document.querySelectorAll('h1');
-  console.log('Found', h1Elements.length, 'h1 elements');
-  h1Elements.forEach((h1, index) => {
-    h1.style.cssText = 'color: #ff6b6b !important; background: #ffe066 !important; padding: 10px !important; border-radius: 5px !important; border: 2px solid #ff6b6b !important;';
-    h1.innerHTML = '🚀 ENHANCED BY REFLUX: ' + h1.innerHTML;
-    console.log('Enhanced h1 element', index + 1);
-  });
-  if (h1Elements.length === 0) {
-    console.log('No h1 elements found, adding a banner instead');
-    const banner = document.createElement('div');
-    banner.innerHTML = '🚀 Reflux Plugin Active on Example.com!';
-    banner.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #ff6b6b; color: white; padding: 10px; text-align: center; z-index: 10000; font-weight: bold;';
-    document.body.appendChild(banner);
-    document.body.style.marginTop = '50px';
-  }
-}
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', enhanceExampleCom);
-} else {
-  enhanceExampleCom();
-}
-/* @/browser */
-    `.trim(),
-  },
-  {
-    name: "com.example.google-modifier",
-    sites: ["google.com", "www.google.com"],
-    function: `
-// Response modifier: prefix page title
-if (typeof body === 'string' && body.includes('<title>')) {
-  try { return body.replace('<title>', '<title>[MODIFIED BY REFLUX] '); } catch (_) {}
-}
-return body;
-    `.trim(),
-  },
-  {
-    name: "com.example.github-enhancer",
-    sites: ["github.com"],
-    function: `
-// Response modifier: inject CSS and banner
-if (typeof body === 'string' && body.includes('</head>')) {
-  const customCSS = '<style>.reflux-banner {background: linear-gradient(90deg, #6366f1, #8b5cf6);color: white;text-align: center;padding: 10px;font-weight: bold;position: fixed;top: 0;left: 0;right: 0;z-index: 9999;}body { margin-top: 40px !important; }</style>';
-  const banner = '<div class="reflux-banner">🚀 Enhanced by Reflux Plugin System</div>';
-  let modifiedBody = body.replace('</head>', customCSS + '</head>');
-  const bodyTagMatch = modifiedBody.match(/<body[^>]*>/);
-  if (bodyTagMatch) {
-    const bodyTag = bodyTagMatch[0];
-    modifiedBody = modifiedBody.replace(bodyTag, bodyTag + banner);
-  }
-  return modifiedBody;
-}
-return body;
-    `.trim(),
-  },
-  {
-    name: "com.example.social-enhancer",
-    sites: ["www.instagram.com", "instagram.com"],
-    function: `
-/* @browser */
-console.log('📱 Social media plugin activated on:', typeof url !== 'undefined' ? url : location?.href);
-console.log('📱 Plugin:', typeof pluginName !== 'undefined' ? pluginName : 'com.example.social-enhancer');
-const socialBanner = document.createElement('div');
-socialBanner.innerHTML = '📱 Social Media Enhanced by Reflux!';
-socialBanner.style.cssText = 'position: fixed; bottom: 0; left: 0; right: 0; background: #8b5cf6; color: white; padding: 8px; text-align: center; z-index: 999999; font-size: 14px;';
-function addSocialEnhancements() {
-  document.body.appendChild(socialBanner);
-  console.log('📱 Social media enhancements added');
-}
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', addSocialEnhancements);
-} else {
-  addSocialEnhancements();
-}
-/* @/browser */
-    `.trim(),
-  },
-  {
-    name: "com.debug.all-sites",
-    sites: ["*"],
-    function: `
-/* @browser */
-try {
-  console.log('🔍 DEBUG PLUGIN - URL:', typeof url !== 'undefined' ? url : location?.href);
-  console.log('🔍 DEBUG PLUGIN - Plugin:', typeof pluginName !== 'undefined' ? pluginName : 'com.debug.all-sites');
-  console.log('🔍 DEBUG PLUGIN - User Agent:', navigator.userAgent);
-  console.log('🔍 DEBUG PLUGIN - Page Title:', document.title);
-  console.log('🔍 DEBUG PLUGIN - DOM Ready State:', document.readyState);
-  const debugIndicator = document.createElement('div');
-  debugIndicator.innerHTML = '🔍 DEBUG: Reflux Plugin Active';
-  debugIndicator.style.cssText = 'position: fixed; top: 10px; right: 10px; background: #ff0000; color: white; padding: 5px 10px; border-radius: 5px; z-index: 999999; font-size: 12px; font-family: monospace; border: 2px solid #ffffff;';
-  function addDebugIndicator() {
-    document.body.appendChild(debugIndicator);
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', addDebugIndicator);
-  } else {
-    addDebugIndicator();
-  }
-} catch (e) {}
-/* @/browser */
-    `.trim(),
-  },
-];
-
-export async function initDefaultPlugins(): Promise<void> {
-  try {
-    await ensurePlugins(defaultPlugins);
-    const list = await listPlugins();
-    // Optional: log current
-    console.log("[RefluxPlugins] Ensured default plugins. Currently loaded:", list);
-  } catch (err) {
-    console.error("[RefluxPlugins] Initialization failed:", err);
   }
 }

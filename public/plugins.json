@@ -1,0 +1,52 @@
+{
+  "plugins": [
+    {
+      "name": "com.example.logger",
+      "displayName": "Global Logger",
+      "description": "Logs page visits and plugin activity for all sites",
+      "sites": ["*"],
+      "enabled": true,
+      "function": "/* @browser */\ntry {\n  console.log('🚀 Example plugin executed on:', typeof url !== 'undefined' ? url : location?.href);\n  console.log('🚀 Plugin name:', typeof pluginName !== 'undefined' ? pluginName : 'com.example.logger');\n} catch (e) {\n  console.log('🚀 Example plugin executed (no url available)');\n}\n/* @/browser */"
+    },
+    {
+      "name": "com.example.example-com-enhancer",
+      "displayName": "Example.com thingie stupidahh",
+      "description": "Enhances Example.com with colorful headers and banners",
+      "sites": ["example.com", "www.example.com"],
+      "enabled": true,
+      "function": "/* @browser */\nconsole.log('🎯 Example.com plugin running on:', typeof url !== 'undefined' ? url : location?.href);\nfunction enhanceExampleCom() {\n  const h1Elements = document.querySelectorAll('h1');\n  console.log('Found', h1Elements.length, 'h1 elements');\n  h1Elements.forEach((h1, index) => {\n    h1.style.cssText = 'color: #ff6b6b !important; background: #ffe066 !important; padding: 10px !important; border-radius: 5px !important; border: 2px solid #ff6b6b !important;';\n    h1.innerHTML = '🚀 ENHANCED BY REFLUX: ' + h1.innerHTML;\n    console.log('Enhanced h1 element', index + 1);\n  });\n  if (h1Elements.length === 0) {\n    console.log('No h1 elements found, adding a banner instead');\n    const banner = document.createElement('div');\n    banner.innerHTML = '🚀 Reflux Plugin Active on Example.com!';\n    banner.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #ff6b6b; color: white; padding: 10px; text-align: center; z-index: 10000; font-weight: bold;';\n    document.body.appendChild(banner);\n    document.body.style.marginTop = '50px';\n  }\n}\nif (document.readyState === 'loading') {\n  document.addEventListener('DOMContentLoaded', enhanceExampleCom);\n} else {\n  enhanceExampleCom();\n}\n/* @/browser */"
+    },
+    {
+      "name": "com.example.google-modifier",
+      "displayName": "Google Title Modifier",
+      "description": "Modifies Google page titles to show they've been processed by Reflux",
+      "sites": ["google.com", "www.google.com"],
+      "enabled": true,
+      "function": "// Response modifier: prefix page title\nif (typeof body === 'string' && body.includes('<title>')) {\n  try { return body.replace('<title>', '<title>[MODIFIED BY REFLUX] '); } catch (_) {}\n}\nreturn body;"
+    },
+    {
+      "name": "com.example.github-enhancer",
+      "displayName": "GitHub Enhancer",
+      "description": "Adds a colorful banner to GitHub pages",
+      "sites": ["github.com"],
+      "enabled": true,
+      "function": "// Response modifier: inject CSS and banner\nif (typeof body === 'string' && body.includes('</head>')) {\n  const customCSS = '<style>.reflux-banner {background: linear-gradient(90deg, #6366f1, #8b5cf6);color: white;text-align: center;padding: 10px;font-weight: bold;position: fixed;top: 0;left: 0;right: 0;z-index: 9999;}body { margin-top: 40px !important; }</style>';\n  const banner = '<div class=\"reflux-banner\">🚀 Enhanced by Reflux Plugin System</div>';\n  let modifiedBody = body.replace('</head>', customCSS + '</head>');\n  const bodyTagMatch = modifiedBody.match(/<body[^>]*>/);\n  if (bodyTagMatch) {\n    const bodyTag = bodyTagMatch[0];\n    modifiedBody = modifiedBody.replace(bodyTag, bodyTag + banner);\n  }\n  return modifiedBody;\n}\nreturn body;"
+    },
+    {
+      "name": "com.example.social-enhancer",
+      "displayName": "Social Media Enhancer",
+      "description": "Adds enhancements to Instagram and other social media sites",
+      "sites": ["www.instagram.com", "instagram.com"],
+      "enabled": true,
+      "function": "/* @browser */\nconsole.log('📱 Social media plugin activated on:', typeof url !== 'undefined' ? url : location?.href);\nconsole.log('📱 Plugin:', typeof pluginName !== 'undefined' ? pluginName : 'com.example.social-enhancer');\nconst socialBanner = document.createElement('div');\nsocialBanner.innerHTML = '📱 Social Media Enhanced by Reflux!';\nsocialBanner.style.cssText = 'position: fixed; bottom: 0; left: 0; right: 0; background: #8b5cf6; color: white; padding: 8px; text-align: center; z-index: 999999; font-size: 14px;';\nfunction addSocialEnhancements() {\n  document.body.appendChild(socialBanner);\n  console.log('📱 Social media enhancements added');\n}\nif (document.readyState === 'loading') {\n  document.addEventListener('DOMContentLoaded', addSocialEnhancements);\n} else {\n  addSocialEnhancements();\n}\n/* @/browser */"
+    },
+    {
+      "name": "com.debug.all-sites",
+      "displayName": "Debug Plugin",
+      "description": "Shows debug information and indicators on all sites",
+      "sites": ["*"],
+      "enabled": false,
+      "function": "/* @browser */\ntry {\n  console.log('🔍 DEBUG PLUGIN - URL:', typeof url !== 'undefined' ? url : location?.href);\n  console.log('🔍 DEBUG PLUGIN - Plugin:', typeof pluginName !== 'undefined' ? pluginName : 'com.debug.all-sites');\n  console.log('🔍 DEBUG PLUGIN - User Agent:', navigator.userAgent);\n  console.log('🔍 DEBUG PLUGIN - Page Title:', document.title);\n  console.log('🔍 DEBUG PLUGIN - DOM Ready State:', document.readyState);\n  const debugIndicator = document.createElement('div');\n  debugIndicator.innerHTML = '🔍 DEBUG: Reflux Plugin Active';\n  debugIndicator.style.cssText = 'position: fixed; top: 10px; right: 10px; background: #ff0000; color: white; padding: 5px 10px; border-radius: 5px; z-index: 999999; font-size: 12px; font-family: monospace; border: 2px solid #ffffff;';\n  function addDebugIndicator() {\n    document.body.appendChild(debugIndicator);\n  }\n  if (document.readyState === 'loading') {\n    document.addEventListener('DOMContentLoaded', addDebugIndicator);\n  } else {\n    addDebugIndicator();\n  }\n} catch (e) {}\n/* @/browser */"
+    }
+  ]
+}

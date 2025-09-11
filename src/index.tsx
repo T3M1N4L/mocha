@@ -12,6 +12,7 @@ import ProxyViewer from "./routes/route";
 import Settings from "./routes/settings";
 import Shortcuts from "./routes/shortcuts";
 import Bookmarks from "./routes/bookmarks";
+import Plugins from "./routes/plugins";
 import "./style.css";
 
 analytics.trackPageview();
@@ -85,6 +86,7 @@ render(
       <Route path="/games" component={Games} />
       <Route path="/shortcuts" component={Shortcuts} />
       <Route path="/bookmarks" component={Bookmarks} />
+      <Route path="/plugins" component={Plugins} />
       <Route path="/faq" component={FAQ} />
       <Route path="/settings" component={Settings} />
     </Router>

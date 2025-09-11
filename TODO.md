@@ -2,7 +2,7 @@
 - [ ] **Ambient-like shortcut cards**
 - [ ] Better UI
 - [ ] socks5/tor routing like holy ubo for wisp
-- [ ] plugins
+- [X] plugins
 - [ ] vertical tabs
 - [ ] custom themes
 - [ ] astro rewrite
@@ -13,7 +13,11 @@
 - [ ] patches to suggest proxy type
 - [ ] history
 - [ ] scramjet/path thing
-- [ ] componentular design (settings boxes, pop out dialogs, dropdown) instead of making everything be in a single big settings.tsx, make it be a component in components/
+- [ ] **componentular design (settings boxes, pop out dialogs, dropdown) instead of making everything be in a single big settings.tsx, make it be a component in components**
 - [ ] remove comments :skull: (vibecoding traces)
 - [ ] google forms hax from the plugin shi
 - [ ] scramjet as main proccy after fixing the discord issue
+- [ ] better daisy ui use oklch and add support for custom themes (themes.css file instead of importing daisy ui themes)
+- [ ] make the images optimized
+- [ ] **make notification popups be on the bottom left**
+- [ ] fully structure this thing after astro rewrite
