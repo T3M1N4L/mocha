@@ -1,19 +1,23 @@
-import { A, useNavigate } from '@solidjs/router'
-import { Dot, GitCommitHorizontal, Search } from 'lucide-solid'
-import { createSignal } from 'solid-js'
+import { A, useNavigate } from "@solidjs/router";
+import { Dot, GitCommitHorizontal, Search } from "lucide-solid";
+import { createSignal } from "solid-js";
 
 export default function Home() {
-  const [query, setQuery] = createSignal('')
-  const navigate = useNavigate()
+  const [query, setQuery] = createSignal("");
+  const navigate = useNavigate();
   function processInput() {
-    if (!query()) return
-    navigate(`/route/${btoa(query())}`)
+    if (!query()) return;
+    navigate(`/route/${btoa(query())}`);
   }
   return (
     <div>
       <div class="absolute left-1/2 top-1/2 flex w-screen -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-4">
         <div class="flex items-center gap-3">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="h-12 w-12">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 512 512"
+            class="h-12 w-12"
+          >
             <title>Mocha icon</title>
             <path
               fill="currentColor"
@@ -25,8 +29,8 @@ export default function Home() {
         <div class="join w-1/3 border border-base-300 rounded-btn">
           <input
             onKeyPress={(e) => {
-              if (e.key !== 'Enter') return
-              processInput()
+              if (e.key !== "Enter") return;
+              processInput();
             }}
             value={query()}
             onInput={(e) => setQuery(e.target.value)}
@@ -34,7 +38,11 @@ export default function Home() {
             type="text"
             class="input join-item w-full bg-base-200 border-0 focus:outline-none focus:ring-0 focus:border-transparent"
           />
-          <button class="btn btn-square join-item bg-base-200 border-none" type="button" onClick={processInput}>
+          <button
+            class="btn btn-square join-item bg-base-200 border-none"
+            type="button"
+            onClick={processInput}
+          >
             <Search class="h-5 w-5" />
           </button>
         </div>
@@ -44,13 +52,17 @@ export default function Home() {
         <div class="flex gap-4">
           <div class="flex items-center gap-2">
             <GitCommitHorizontal />
-            <A class="link-hover link" target="_blank" href={`https://github.com/t3m1n4l/mocha/commit/${__GIT_COMMIT__}/`}>
+            <A
+              class="link-hover link"
+              target="_blank"
+              href={`https://github.com/t3m1n4l/mocha/commit/${__GIT_COMMIT__}/`}
+            >
               {__GIT_COMMIT__.slice(0, 7)}
             </A>
-             - {__GIT_MESSAGE__}
+            - {__GIT_MESSAGE__}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

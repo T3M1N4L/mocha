@@ -1,16 +1,20 @@
-import { A, useLocation } from '@solidjs/router'
-import { Bookmark, Joystick, Layers, Settings } from 'lucide-solid'
-import { Show } from 'solid-js'
+import { A, useLocation } from "@solidjs/router";
+import { Bookmark, Joystick, Layers, Settings } from "lucide-solid";
+import { Show } from "solid-js";
 export default function Navbar() {
-  const location = useLocation()
+  const location = useLocation();
 
   return (
-    <Show when={!location.pathname.includes('/route/')}>
+    <Show when={!location.pathname.includes("/route/")}>
       <div class="navbar m-3.5 w-[calc(100vw-1.75rem)] rounded-btn bg-base-200 px-6 border border-base-300">
         <div class="navbar-start">
           <A href="/">
             <div class="btn btn-ghost -ml-2 flex h-11 min-h-11 gap-3">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="h-7 w-7">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                class="h-7 w-7"
+              >
                 <title>Mocha icon</title>
                 <path
                   fill="currentColor"
@@ -45,5 +49,5 @@ export default function Navbar() {
         </div>
       </div>
     </Show>
-  )
+  );
 }

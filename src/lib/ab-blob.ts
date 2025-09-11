@@ -1,39 +1,37 @@
-import store from 'store2'
-import type { TabData, CloakData } from './types'
+import store from "store2";
+import type { TabData, CloakData } from "./types";
 
 export function handleCloaking() {
-  if (window.self !== window.top) return
+  if (window.self !== window.top) return;
 
-  const cloak = store.local.get('cloak') as CloakData
-  const mode = cloak?.mode
+  const cloak = store.local.get("cloak") as CloakData;
+  const mode = cloak?.mode;
 
-  if (mode === 'aboutblank') {
-    openAbWindow(window.location.origin)
-  } else if (mode === 'blob') {
-    openBlobWindow(window.location.origin)
+  if (mode === "aboutblank") {
+    openAbWindow(window.location.origin);
+  } else if (mode === "blob") {
+    openBlobWindow(window.location.origin);
   } else {
-    // mode === 'none' or unset -> do nothing
   }
 }
 
 // Convert any image URL to a data URI
 async function imageUrlToDataUri(url: string): Promise<string> {
-  const res = await fetch(url)
-  const blob = await res.blob()
+  const res = await fetch(url);
+  const blob = await res.blob();
   return new Promise((resolve) => {
-    const reader = new FileReader()
-    reader.onloadend = () => resolve(reader.result as string)
-    reader.readAsDataURL(blob)
-  })
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
 }
 
 export async function openBlobWindow(src: string, redirect = true) {
-  const tabData = store.local.get('tab') as TabData
-  const title = tabData?.name?.trim() || 'Google'
-  const iconUrl = tabData?.icon?.trim() || '/img/google.png'
+  const tabData = store.local.get("tab") as TabData;
+  const title = tabData?.name?.trim() || "Google";
+  const iconUrl = tabData?.icon?.trim() || "/img/google.png";
 
-  // Convert icon image to data URI
-  const iconDataUri = await imageUrlToDataUri(iconUrl)
+  const iconDataUri = await imageUrlToDataUri(iconUrl);
 
   const html = `
     <html>
@@ -54,50 +52,50 @@ export async function openBlobWindow(src: string, redirect = true) {
         <iframe src="${src}" allow="fullscreen" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
       </body>
     </html>
-  `
+  `;
 
-  const blob = new Blob([html], { type: 'text/html' })
-  const blobUrl = URL.createObjectURL(blob)
+  const blob = new Blob([html], { type: "text/html" });
+  const blobUrl = URL.createObjectURL(blob);
 
-  const tab = window.open(blobUrl, '_blank')
-  if (!tab) return
+  const tab = window.open(blobUrl, "_blank");
+  if (!tab) return;
 
-  if (redirect) window.location.replace('https://classroom.google.com/h')
+  if (redirect) window.location.replace("https://classroom.google.com/h");
 }
 
 export function openCloakWindow(src: string, redirect = true) {
-  const cloak = store.local.get('cloak') as CloakData
-  const mode = cloak?.mode
-  if (mode === 'aboutblank') return openAbWindow(src, redirect)
-  if (mode === 'blob') return openBlobWindow(src, redirect)
-  const tab = window.open(src, '_blank')
-  if (!tab) return
-  if (redirect) window.location.replace('https://classroom.google.com/h')
+  const cloak = store.local.get("cloak") as CloakData;
+  const mode = cloak?.mode;
+  if (mode === "aboutblank") return openAbWindow(src, redirect);
+  if (mode === "blob") return openBlobWindow(src, redirect);
+  const tab = window.open(src, "_blank");
+  if (!tab) return;
+  if (redirect) window.location.replace("https://classroom.google.com/h");
 }
 
 export function openAbWindow(src: string, redirect = true) {
-  const tab = window.open('about:blank', '_blank')
-  if (!tab) return
-  const tabData = store.local.get('tab') as TabData
-  const title = tabData?.name?.trim() || 'Google'
-  const icon = tabData?.icon?.trim() || '/img/google.png'
+  const tab = window.open("about:blank", "_blank");
+  if (!tab) return;
+  const tabData = store.local.get("tab") as TabData;
+  const title = tabData?.name?.trim() || "Google";
+  const icon = tabData?.icon?.trim() || "/img/google.png";
 
-  const link = tab.document.createElement('link')
-  link.rel = 'icon'
-  link.href = icon
-  tab.document.head.appendChild(link)
+  const link = tab.document.createElement("link");
+  link.rel = "icon";
+  link.href = icon;
+  tab.document.head.appendChild(link);
 
-  tab.document.title = title
+  tab.document.title = title;
 
-  const iframe = tab.document.createElement('iframe')
-  const stl = iframe.style
-  stl.border = stl.outline = 'none'
-  stl.width = '100vw'
-  stl.height = '100vh'
-  stl.position = 'fixed'
-  stl.left = stl.right = stl.top = stl.bottom = '0'
-  iframe.src = src
-  tab.document.body.appendChild(iframe)
+  const iframe = tab.document.createElement("iframe");
+  const stl = iframe.style;
+  stl.border = stl.outline = "none";
+  stl.width = "100vw";
+  stl.height = "100vh";
+  stl.position = "fixed";
+  stl.left = stl.right = stl.top = stl.bottom = "0";
+  iframe.src = src;
+  tab.document.body.appendChild(iframe);
 
-  if (redirect) window.location.replace('https://classroom.google.com/h')
+  if (redirect) window.location.replace("https://classroom.google.com/h");
 }

@@ -1,12 +1,12 @@
-import type { Patch } from './types'
+import type { Patch } from "./types";
 
 export const patches: Patch[] = [
   {
-    hostname: 'neal.fun',
-    suggestedTransport: 'libcurl'
+    hostname: "neal.fun",
+    suggestedTransport: "libcurl",
   },
   {
-    hostname: 'instagram.com',
-    works: false
-  }
-]
+    hostname: "instagram.com",
+    works: false,
+  },
+];

@@ -1,19 +1,19 @@
-import store from 'store2'
-import type { TransportData } from './types'
+import store from "store2";
+import type { TransportData } from "./types";
 
-import { setupProxy } from './proxy'
+import { setupProxy } from "./proxy";
 
 export const transports = {
-  epoxy: '/epoxy/index.mjs',
-  libcurl: '/libcurl/index.mjs'
-}
+  epoxy: "/epoxy/index.mjs",
+  libcurl: "/libcurl/index.mjs",
+};
 
 export async function handleTransport(transport?: keyof typeof transports) {
   if (transport) {
-    store('transport', {
-      transport
-    } satisfies TransportData)
+    store("transport", {
+      transport,
+    } satisfies TransportData);
   }
 
-  await setupProxy()
+  await setupProxy();
 }

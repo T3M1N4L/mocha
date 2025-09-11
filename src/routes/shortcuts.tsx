@@ -1,21 +1,21 @@
-import { Show, createSignal, onMount } from 'solid-js'
-import type { ShortcutData } from '../lib/types'
+import { Show, createSignal, onMount } from "solid-js";
+import type { ShortcutData } from "../lib/types";
 
-import Shortcut from '../components/shortcut'
+import Shortcut from "../components/shortcut";
 
 export default function Shortcuts() {
-  const [data, setData] = createSignal<ShortcutData[]>([])
+  const [data, setData] = createSignal<ShortcutData[]>([]);
 
   onMount(() => {
-    fetch('/shortcuts.json')
+    fetch("/shortcuts.json")
       .then((res) => res.json())
       .then((res: ShortcutData[]) => {
         const sorted = res.sort((a, b) => {
-          return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-        })
-        setData(sorted)
-      })
-  })
+          return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+        });
+        setData(sorted);
+      });
+  });
 
   return (
     <div class="flex flex-wrap justify-center gap-4 px-4 py-8">
@@ -24,8 +24,8 @@ export default function Shortcuts() {
       </Show>
       {data().map((shortcut) => {
         // biome-ignore lint: it's fine
-        return <Shortcut shortcut={shortcut} />
+        return <Shortcut shortcut={shortcut} />;
       })}
     </div>
-  )
+  );
 }

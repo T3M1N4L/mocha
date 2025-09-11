@@ -1,16 +1,17 @@
-import store from 'store2'
-import type { TabData } from './types'
+import store from "store2";
+import type { TabData } from "./types";
 
 export function handleTabCloak() {
-  const tabData = store('tab') as TabData
+  const tabData = store("tab") as TabData;
 
   if (tabData.name) {
-    document.title = tabData.name
+    document.title = tabData.name;
   } else {
-    document.title = 'Mocha'
+    document.title = "Mocha";
   }
 
   if (tabData.icon) {
-    ;(document.querySelector('link[rel~=icon]') as HTMLLinkElement).href = tabData.icon
+    (document.querySelector("link[rel~=icon]") as HTMLLinkElement).href =
+      tabData.icon;
   }
 }

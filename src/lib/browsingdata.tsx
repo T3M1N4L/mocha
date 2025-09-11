@@ -1,48 +1,48 @@
-import { openDB } from 'idb'
-import { CircleCheck } from 'lucide-solid'
-import toast from 'solid-toast'
-import type { BrowsingData } from './types'
-import { setImportStatus, setExportStatus } from '../routes/settings'
+import { openDB } from "idb";
+import { CircleCheck } from "lucide-solid";
+import toast from "solid-toast";
+import type { BrowsingData } from "./types";
+import { setImportStatus, setExportStatus } from "../routes/settings";
 
 export async function exportData() {
-  setExportStatus(false)
-  const db = await openDB('__op', 1, {
+  setExportStatus(false);
+  const db = await openDB("__op", 1, {
     upgrade(db) {
-      const store = db.createObjectStore('cookies', {
-        keyPath: 'id'
-      })
-      store.createIndex('path', 'path')
-    }
-  })
+      const store = db.createObjectStore("cookies", {
+        keyPath: "id",
+      });
+      store.createIndex("path", "path");
+    },
+  });
   const data: BrowsingData = {
     cookies: [],
-    localStorage: []
-  }
+    localStorage: [],
+  };
 
   // Local storage
   for (const key in localStorage) {
-    if (key.startsWith('__uv$')) {
-      const value = localStorage.getItem(key)
-      if (!value) continue
+    if (key.startsWith("__uv$")) {
+      const value = localStorage.getItem(key);
+      if (!value) continue;
 
       data.localStorage?.push({
         key,
-        value
-      })
+        value,
+      });
     }
   }
 
   // Cookies
-  const cookies = await db.getAll('cookies')
-  data.cookies = cookies
+  const cookies = await db.getAll("cookies");
+  data.cookies = cookies;
 
-  const link = document.createElement('a')
-  const file = new Blob([JSON.stringify(data)], { type: 'text/plain' })
-  link.href = URL.createObjectURL(file)
-  link.download = `mocha-export-${Date.now()}.json`
-  link.click()
-  URL.revokeObjectURL(link.href)
-  link.remove()
+  const link = document.createElement("a");
+  const file = new Blob([JSON.stringify(data)], { type: "text/plain" });
+  link.href = URL.createObjectURL(file);
+  link.download = `mocha-export-${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  link.remove();
 
   toast.custom(() => {
     return (
@@ -52,50 +52,50 @@ export async function exportData() {
           <span>Browsing data exported.</span>
         </div>
       </div>
-    )
-  })
+    );
+  });
 
-  setExportStatus(true)
+  setExportStatus(true);
 }
 
 export async function importData(fileImport: HTMLInputElement) {
-  setImportStatus(false)
-  const db = await openDB('__op', 1, {
+  setImportStatus(false);
+  const db = await openDB("__op", 1, {
     upgrade(db) {
-      const store = db.createObjectStore('cookies', {
-        keyPath: 'id'
-      })
-      store.createIndex('path', 'path')
-    }
-  })
-  fileImport.click()
+      const store = db.createObjectStore("cookies", {
+        keyPath: "id",
+      });
+      store.createIndex("path", "path");
+    },
+  });
+  fileImport.click();
 
-  fileImport.addEventListener('change', (event) => {
-    if (!(event.target as HTMLInputElement).files) return
+  fileImport.addEventListener("change", (event) => {
+    if (!(event.target as HTMLInputElement).files) return;
 
-    const file = (event.target as HTMLInputElement).files
-    if (!file) return
+    const file = (event.target as HTMLInputElement).files;
+    if (!file) return;
 
-    const reader = new FileReader()
+    const reader = new FileReader();
     reader.onload = async (e) => {
-      const content = e.target?.result
+      const content = e.target?.result;
 
-      const data: BrowsingData = JSON.parse(content as string)
+      const data: BrowsingData = JSON.parse(content as string);
 
-      await resetData(false)
+      await resetData(false);
 
       if (data.localStorage) {
         for (const item of data.localStorage) {
-          localStorage.setItem(item.key, item.value)
+          localStorage.setItem(item.key, item.value);
         }
       }
 
       if (data.cookies) {
         for (const item of data.cookies) {
-          if (item.set) item.set = new Date(item.set as string)
-          if (item.expires) item.expires = new Date(item.expires as string)
+          if (item.set) item.set = new Date(item.set as string);
+          if (item.expires) item.expires = new Date(item.expires as string);
 
-          await db.add('cookies', item)
+          await db.add("cookies", item);
         }
       }
 
@@ -107,34 +107,34 @@ export async function importData(fileImport: HTMLInputElement) {
               <span>Browsing data imported from {file.item(0)?.name}</span>
             </div>
           </div>
-        )
-      })
+        );
+      });
 
-      setImportStatus(true)
-    }
+      setImportStatus(true);
+    };
 
-    const item = file.item(0)
-    if (!item) return
+    const item = file.item(0);
+    if (!item) return;
 
-    reader.readAsText(item)
-  })
+    reader.readAsText(item);
+  });
 }
 
 export async function resetData(showNotification = true) {
-  const db = await openDB('__op', 1, {
+  const db = await openDB("__op", 1, {
     upgrade(db) {
-      const store = db.createObjectStore('cookies', {
-        keyPath: 'id'
-      })
-      store.createIndex('path', 'path')
-    }
-  })
+      const store = db.createObjectStore("cookies", {
+        keyPath: "id",
+      });
+      store.createIndex("path", "path");
+    },
+  });
 
   for (const key in localStorage) {
-    if (key.startsWith('__uv$')) localStorage.removeItem(key)
+    if (key.startsWith("__uv$")) localStorage.removeItem(key);
   }
 
-  await db.clear('cookies')
+  await db.clear("cookies");
 
   if (showNotification)
     toast.custom(() => {
@@ -145,6 +145,6 @@ export async function resetData(showNotification = true) {
             <span>Browsing data deleted.</span>
           </div>
         </div>
-      )
-    })
+      );
+    });
 }

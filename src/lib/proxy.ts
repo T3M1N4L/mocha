@@ -1,16 +1,16 @@
-import store from 'store2'
-import type { TransportData, WispData } from './types'
-import { transports } from './transport'
-import { BareMuxConnection } from '@mercuryworkshop/bare-mux'
-import { setProxyStatus } from '../routes/route'
-
-export const DEFAULT_WISP_URL = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/wisp/`;
+import store from "store2";
+import type { TransportData, WispData } from "./types";
+import { transports } from "./transport";
+import { BareMuxConnection } from "@mercuryworkshop/bare-mux";
+import { setProxyStatus } from "../routes/route";
+import { initDefaultPlugins, getRefluxAPI } from "./refluxPlugins";
+export const DEFAULT_WISP_URL = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/wisp/`;
 
 async function ensureScramjetLoaded() {
   if (typeof window.$scramjetLoadController === "function") return;
   await new Promise<void>((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = '/matcha/scramjet.all.js';
+    const script = document.createElement("script");
+    script.src = "/matcha/scramjet.all.js";
     script.onload = () => resolve();
     script.onerror = () => reject(new Error("Failed to load Scramjet bundle"));
     document.head.appendChild(script);
@@ -18,31 +18,35 @@ async function ensureScramjetLoaded() {
 }
 
 export async function setupProxy() {
-  if ('serviceWorker' in navigator) {
+  if ("serviceWorker" in navigator) {
     navigator.serviceWorker.getRegistrations().then(async (registrations) => {
       for await (const registration of registrations) {
-        await registration.unregister()
+        await registration.unregister();
       }
 
-      navigator.serviceWorker.register('/sw.js').then((registration) => {
+      navigator.serviceWorker.register("/sw.js").then((registration) => {
         registration.update().then(() => {
-          console.log('Service worker registered')
-        })
-      })
+          console.log("Service worker registered");
+        });
+      });
 
       navigator.serviceWorker.ready.then(async (registration) => {
-        console.log('Service worker ready')
+        console.log("Service worker ready");
         try {
-          const adblockData = store.local.get('adblock') as { enabled: boolean };
+          const adblockData = store.local.get("adblock") as {
+            enabled: boolean;
+          };
           const enabled = !!adblockData?.enabled;
           const sw = navigator.serviceWorker.controller || registration.active;
           if (sw) {
             const channel = new MessageChannel();
-            sw.postMessage({ type: 'setAdblockEnabled', enabled }, [channel.port2]);
+            sw.postMessage({ type: "setAdblockEnabled", enabled }, [
+              channel.port2,
+            ]);
           }
         } catch (e) {}
-      })
-    })
+      });
+    });
 
     await ensureScramjetLoaded();
 
@@ -53,26 +57,49 @@ export async function setupProxy() {
           wasm: "/matcha/scramjet.wasm.wasm",
           all: "/matcha/scramjet.all.js",
           sync: "/matcha/scramjet.sync.js",
-        }
+        },
       });
       scramjet.init();
     } else {
       console.warn("Scramjet bundle not loaded!");
     }
 
-    const transportData = store('transport') as TransportData
-    console.log('Using', transports[transportData.transport])
+    const transportData = store("transport") as TransportData;
+    console.log("Using", transports[transportData.transport]);
 
-    const wispData = store('wisp') as WispData
-    const wisp = (wispData && wispData.url) ? wispData.url : DEFAULT_WISP_URL
+    const wispData = store("wisp") as WispData;
+    const wisp = wispData && wispData.url ? wispData.url : DEFAULT_WISP_URL;
 
-    const connection = new BareMuxConnection('/bare-mux/worker.js')
-    await connection.setTransport(
-      transports[transportData.transport],
-      [{
-        wisp
-      }]
-    );
-    setProxyStatus(true)
+    // Ensure default Reflux plugins are present before transport initialization,
+    // so Reflux middleware can load them on startup.
+    try {
+      await initDefaultPlugins();
+    } catch (e) {
+      console.error("Failed to init default Reflux plugins:", e);
+    }
+
+    const connection = new BareMuxConnection("/bare-mux/worker.js");
+    await connection.setTransport("/reflux/index.mjs", [
+      { base: transports[transportData.transport], wisp: wisp },
+    ]);
+
+    // Expose handy globals for debugging and programmatic control
+    try {
+      (window as any).BMConnection = connection;
+      (window as any).RefluxControlAPI = getRefluxAPI();
+      (window as any).RefluxAPIInstance = (window as any).RefluxControlAPI;
+    } catch {}
+
+    // Optionally trigger a middleware plugin reload if available
+    try {
+      const mw = (connection as any)?._transport?.middleware;
+      if (mw && typeof mw.reloadPlugins === "function") {
+        await mw.reloadPlugins();
+      }
+    } catch (e) {
+      console.log("Reflux middleware reload not available; plugins will load on next request");
+    }
+
+    setProxyStatus(true);
   }
 }

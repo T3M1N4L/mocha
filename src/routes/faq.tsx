@@ -1,4 +1,4 @@
-import { A } from '@solidjs/router'
+import { A } from "@solidjs/router";
 
 export default function FAQ() {
   return (
@@ -8,7 +8,10 @@ export default function FAQ() {
         <input type="checkbox" name="faq" />
         <div class="collapse-title text-xl font-medium">What is Mocha?</div>
         <div class="collapse-content">
-          <p>Mocha is a web proxy used to unblock websites at work or school. Your traffic is encrypted so no one can read it, not even us. </p>
+          <p>
+            Mocha is a web proxy used to unblock websites at work or school.
+            Your traffic is encrypted so no one can read it, not even us.{" "}
+          </p>
         </div>
       </div>
 
@@ -17,11 +20,12 @@ export default function FAQ() {
         <div class="collapse-title text-xl font-medium">How do I use it?</div>
         <div class="collapse-content">
           <p>
-            Navigate to the home page and type in a URL or search query. You can also launch a preset{' '}
+            Navigate to the home page and type in a URL or search query. You can
+            also launch a preset{" "}
             <A href="/shortcuts" class="underline underline-offset-2">
               shortcut
-            </A>{' '}
-            or{' '}
+            </A>{" "}
+            or{" "}
             <A href="/game" class="underline underline-offset-2">
               game
             </A>
@@ -32,11 +36,17 @@ export default function FAQ() {
 
       <div class="collapse collapse-arrow bg-base-200">
         <input type="checkbox" name="faq" />
-        <div class="collapse-title text-xl font-medium">Why is the proxy slow?</div>
+        <div class="collapse-title text-xl font-medium">
+          Why is the proxy slow?
+        </div>
         <div class="collapse-content">
-          <p>The proxy is hosted on a shared server that serves all users. If there is a significant amount of users at one time, it can cause network congestion and slow down requests. </p>
+          <p>
+            The proxy is hosted on a shared server that serves all users. If
+            there is a significant amount of users at one time, it can cause
+            network congestion and slow down requests.{" "}
+          </p>
         </div>
       </div>
     </div>
-  )
+  );
 }

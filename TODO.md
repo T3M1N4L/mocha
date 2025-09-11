@@ -1,14 +1,19 @@
 - [ ] Gamium
-- [ ] Ambient-like shortcut cards
+- [ ] **Ambient-like shortcut cards**
 - [ ] Better UI
 - [ ] socks5/tor routing like holy ubo for wisp
 - [ ] plugins
 - [ ] vertical tabs
 - [ ] custom themes
 - [ ] astro rewrite
-- [ ] fastify or whatevr
 - [ ] custom userscripts
 - [ ] nextdns
-- [ ] scramjet patches for hl/gl en for google (without breaking it completley lmao (not infinitley reloading and allat))
-- [ ] scramjet export browsing data
+- [ ] patches for hl/gl en for google (without breaking it completley lmao (not infinitley reloading and allat))
+- [ ] **scramjet export browsing data**
 - [ ] patches to suggest proxy type
+- [ ] history
+- [ ] scramjet/path thing
+- [ ] componentular design (settings boxes, pop out dialogs, dropdown) instead of making everything be in a single big settings.tsx, make it be a component in components/
+- [ ] remove comments :skull: (vibecoding traces)
+- [ ] google forms hax from the plugin shi
+- [ ] scramjet as main proccy after fixing the discord issue

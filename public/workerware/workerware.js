@@ -55,7 +55,8 @@ class WorkerWare {
     let validateMW = this.validateMiddleware(middleware);
     if (validateMW.error) throw new WWError(validateMW.error);
     // This means the middleware is an anonymous function, or the user is silly and named their function "function"
-    if (middleware.function.name == "function") middleware.name = crypto.randomUUID();
+    if (middleware.function.name == "function")
+      middleware.name = crypto.randomUUID();
     if (!middleware.name) middleware.name = middleware.function.name;
     if (this._opt.randomNames) middleware.name = crypto.randomUUID();
     if (this._opt.debug) dbg("Adding middleware:", middleware.name);
@@ -86,11 +87,15 @@ class WorkerWare {
   }
   deleteByName(middlewareID) {
     if (this._opt.debug) dbg("Deleting middleware:", middlewareID);
-    this._middlewares = this._middlewares.filter((mw) => mw.name !== middlewareID);
+    this._middlewares = this._middlewares.filter(
+      (mw) => mw.name !== middlewareID,
+    );
   }
   deleteByEvent(middlewareEvent) {
     if (this._opt.debug) dbg("Deleting middleware by event:", middlewareEvent);
-    this._middlewares = this._middlewares.filter((mw) => !mw.events.includes(middlewareEvent));
+    this._middlewares = this._middlewares.filter(
+      (mw) => !mw.events.includes(middlewareEvent),
+    );
   }
   get() {
     return this._middlewares;
@@ -113,7 +118,7 @@ class WorkerWare {
         didCall = true;
         event.workerware = {
           config: middlewares[i].configuration || {},
-        }
+        };
         if (this._opt.timing) console.time(middlewares[i].name);
         let call = middlewares[i].function(event);
         if (this._opt.timing) console.timeEnd(middlewares[i].name);
@@ -139,7 +144,10 @@ class WorkerWare {
       return {
         error: "middleware.function must be typeof function",
       };
-    if (typeof middleware.configuration !== "object" && middleware.configuration !== undefined) {
+    if (
+      typeof middleware.configuration !== "object" &&
+      middleware.configuration !== undefined
+    ) {
       return {
         error: "middleware.configuration must be typeof object",
       };
@@ -154,9 +162,14 @@ class WorkerWare {
       };
     if (middleware.events.some((ev) => !validEvents.includes(ev)))
       return {
-        error: "Invalid event type! Must be one of the following: " + validEvents.join(", "),
+        error:
+          "Invalid event type! Must be one of the following: " +
+          validEvents.join(", "),
       };
-    if (middleware.explicitCall && typeof middleware.explicitCall !== "boolean") {
+    if (
+      middleware.explicitCall &&
+      typeof middleware.explicitCall !== "boolean"
+    ) {
       return {
         error: "middleware.explicitCall must be typeof boolean",
       };

@@ -1,55 +1,56 @@
-importScripts('/latte/uv.bundle.js')
-importScripts('/latte/uv.config.js')
+importScripts("/latte/uv.bundle.js");
+importScripts("/latte/uv.config.js");
 importScripts("/matcha/scramjet.all.js");
-importScripts(__uv$config.sw || '/latte/uv.sw.js')
-importScripts('/workerware/workerware.js')
-importScripts('/adblock.js')
+importScripts(__uv$config.sw || "/latte/uv.sw.js");
+importScripts("/workerware/workerware.js");
+importScripts("/adblock.js");
 
+self.addEventListener("install", (event) => {
+  event.waitUntil(self.skipWaiting());
+});
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting())
-})
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim())
-})
-
-const uv = new UVServiceWorker()
+const uv = new UVServiceWorker();
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
 const blacklist = {};
 
 let adblockEnabled = false;
 
-fetch('/blocklist/blocklist.json').then((request) => {
+fetch("/blocklist/blocklist.json").then((request) => {
   request.json().then((jsonData) => {
     jsonData.forEach((domain) => {
-      const domainTld = domain.replace(/.+(?=\.\w)/, '');
+      const domainTld = domain.replace(/.+(?=\.\w)/, "");
       if (!blacklist.hasOwnProperty(domainTld)) blacklist[domainTld] = [];
       blacklist[domainTld].push(
         encodeURIComponent(domain.slice(0, -domainTld.length))
-          .replace(/([()])/g, '\\$1')
+          .replace(/([()])/g, "\\$1")
           .replace(/(\*\.)|\./g, (match, firstExpression) =>
-            firstExpression ? '(?:.+\\.)?' : '\\' + match
-          )
+            firstExpression ? "(?:.+\\.)?" : "\\" + match,
+          ),
       );
     });
     for (let [domainTld, domainList] of Object.entries(blacklist))
-      blacklist[domainTld] = new RegExp(`^(?:${domainList.join('|')})$`);
+      blacklist[domainTld] = new RegExp(`^(?:${domainList.join("|")})$`);
     Object.freeze(blacklist);
   });
 });
 
 const ww = new WorkerWare({});
 
-const SETTINGS_CACHE = 'mocha-settings-v1';
+const SETTINGS_CACHE = "mocha-settings-v1";
 
 async function persistAdblockSetting(enabled) {
   try {
     const cache = await caches.open(SETTINGS_CACHE);
     await cache.put(
-      'adblock-setting',
-      new Response(JSON.stringify({ enabled }), { headers: { 'content-type': 'application/json' } })
+      "adblock-setting",
+      new Response(JSON.stringify({ enabled }), {
+        headers: { "content-type": "application/json" },
+      }),
     );
   } catch (e) {}
 }
@@ -57,10 +58,10 @@ async function persistAdblockSetting(enabled) {
 async function loadAdblockSetting() {
   try {
     const cache = await caches.open(SETTINGS_CACHE);
-    const res = await cache.match('adblock-setting');
+    const res = await cache.match("adblock-setting");
     if (!res) return null;
     const data = await res.json().catch(() => ({}));
-    return typeof data?.enabled === 'boolean' ? !!data.enabled : null;
+    return typeof data?.enabled === "boolean" ? !!data.enabled : null;
   } catch (e) {
     return null;
   }
@@ -70,7 +71,9 @@ loadAdblockSetting()
   .then((val) => {
     if (val !== null) {
       adblockEnabled = val;
-      try { applyWWAdblockMiddleware(adblockEnabled); } catch (e) {}
+      try {
+        applyWWAdblockMiddleware(adblockEnabled);
+      } catch (e) {}
     }
   })
   .catch(() => {});
@@ -97,7 +100,9 @@ self.addEventListener("message", (event) => {
   if (data && data.type === "setAdblockEnabled") {
     adblockEnabled = !!data.enabled;
     if (!adblockEnabled) {
-      try { ww.deleteByName("Adblock"); } catch (e) {}
+      try {
+        ww.deleteByName("Adblock");
+      } catch (e) {}
     }
 
     applyWWAdblockMiddleware(adblockEnabled);
@@ -112,19 +117,19 @@ self.addEventListener("message", (event) => {
   }
 });
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener("fetch", (event) => {
   event.respondWith(
     (async () => {
-      // Sync latest persisted adblock setting before running any middleware
       try {
         const latest = await loadAdblockSetting();
         if (latest !== null && latest !== adblockEnabled) {
           adblockEnabled = latest;
-          try { applyWWAdblockMiddleware(adblockEnabled); } catch (e) {}
+          try {
+            applyWWAdblockMiddleware(adblockEnabled);
+          } catch (e) {}
         }
       } catch (e) {}
 
-      // Always run WorkerWare; Adblock is just one middleware among others.
       let mwResponse = await ww.run(event)();
       if (mwResponse.includes(null)) {
         return;
@@ -135,11 +140,14 @@ self.addEventListener('fetch', (event) => {
         try {
           const targetUrl = new URL(
             Function(`return ${scramjet.config.codec.decode}`)()(
-              new URL(event.request.url).pathname.replace(scramjet.config.prefix, '')
-            )
+              new URL(event.request.url).pathname.replace(
+                scramjet.config.prefix,
+                "",
+              ),
+            ),
           );
           const domain = targetUrl.hostname;
-          const domainTld = domain.replace(/.+(?=\.\w)/, '');
+          const domainTld = domain.replace(/.+(?=\.\w)/, "");
           if (
             adblockEnabled &&
             blacklist.hasOwnProperty(domainTld) &&
@@ -154,11 +162,11 @@ self.addEventListener('fetch', (event) => {
         try {
           const targetUrl = new URL(
             uv.config.decodeUrl(
-              new URL(event.request.url).pathname.replace(uv.config.prefix, '')
-            )
+              new URL(event.request.url).pathname.replace(uv.config.prefix, ""),
+            ),
           );
           const domain = targetUrl.hostname;
-          const domainTld = domain.replace(/.+(?=\.\w)/, '');
+          const domainTld = domain.replace(/.+(?=\.\w)/, "");
           if (
             adblockEnabled &&
             blacklist.hasOwnProperty(domainTld) &&
@@ -170,6 +178,6 @@ self.addEventListener('fetch', (event) => {
         return await uv.fetch(event);
       }
       return await fetch(event.request);
-    })()
+    })(),
   );
 });

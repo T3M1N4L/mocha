@@ -1,110 +1,134 @@
-import { A, useParams, useSearchParams } from '@solidjs/router'
-import clsx from 'clsx'
-import { Bookmark, ChevronLeft, ChevronRight, CircleAlert, FileCode, Home, PanelBottomClose, PanelBottomOpen, RotateCw, SquareArrowOutUpRight, TriangleAlert } from 'lucide-solid'
-import { createEffect, createSignal, onMount } from 'solid-js'
-import toast from 'solid-toast'
-import store from 'store2'
-import { openCloakWindow } from '../lib/ab-blob'
-import { handlePanicKey } from '../lib/panic'
-import { patches } from '../lib/patch'
-import { handleTransport } from '../lib/transport'
-import type { ContentWindow, DevtoolsData, TransportData, ProxyEngineData } from '../lib/types'
-import { encodeXor, formatSearch, getFavicon } from '../lib/utils'
-import { bookmarks, handleBookmark } from '../lib/bookmarks'
+import { A, useParams, useSearchParams } from "@solidjs/router";
+import clsx from "clsx";
+import {
+  Bookmark,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  FileCode,
+  Home,
+  PanelBottomClose,
+  PanelBottomOpen,
+  RotateCw,
+  SquareArrowOutUpRight,
+  TriangleAlert,
+} from "lucide-solid";
+import { createEffect, createSignal, onMount } from "solid-js";
+import toast from "solid-toast";
+import store from "store2";
+import { openCloakWindow } from "../lib/ab-blob";
+import { handlePanicKey } from "../lib/panic";
+import { patches } from "../lib/patch";
+import { handleTransport } from "../lib/transport";
+import type {
+  ContentWindow,
+  DevtoolsData,
+  TransportData,
+  ProxyEngineData,
+} from "../lib/types";
+import { encodeXor, formatSearch, getFavicon } from "../lib/utils";
+import { bookmarks, handleBookmark } from "../lib/bookmarks";
 
-export const [proxyReady, setProxyStatus] = createSignal(false)
+export const [proxyReady, setProxyStatus] = createSignal(false);
 
 export default function Route() {
-  let ref!: HTMLIFrameElement
-  const [url, setUrl] = createSignal('')
-  const [showControls, setShowControls] = createSignal(true)
-  const [bookmarked, setBookmarked] = createSignal(false)
+  let ref!: HTMLIFrameElement;
+  const [url, setUrl] = createSignal("");
+  const [showControls, setShowControls] = createSignal(true);
+  const [bookmarked, setBookmarked] = createSignal(false);
 
-  const params = useParams()
-  const [searchParams] = useSearchParams()
+  const params = useParams();
+  const [searchParams] = useSearchParams();
 
   onMount(() => {
-    if (searchParams.hidecontrolbar === 'true') {
-      setShowControls(false)
+    if (searchParams.hidecontrolbar === "true") {
+      setShowControls(false);
     }
-  })
+  });
 
   createEffect(() => {
-    if (!ref || !ref.contentWindow) return
-    const query = atob(params.route)
+    if (!ref || !ref.contentWindow) return;
+    const query = atob(params.route);
 
     if (proxyReady()) {
-      const engine = (store.local.get('proxyEngine') as ProxyEngineData)?.engine || 'uv'
-      const dest = formatSearch(query)
-      if (engine === 'scramjet') {
-        ref.src = `/scramjet/${dest}`
+      const engine =
+        (store.local.get("proxyEngine") as ProxyEngineData)?.engine || "uv";
+      const dest = formatSearch(query);
+      if (engine === "scramjet") {
+        ref.src = `/scramjet/${dest}`;
       } else {
-        ref.src = `/uv/${encodeXor(dest)}`
+        ref.src = `/uv/${encodeXor(dest)}`;
       }
       // Always show the real destination (not encoded, not prefixed) in the control bar
-      setUrl(dest)
+      setUrl(dest);
     }
-  })
+  });
 
   function handleLoad() {
-    if (!ref || !ref.contentWindow) return
-    const contentWindow = ref.contentWindow as ContentWindow
+    if (!ref || !ref.contentWindow) return;
+    const contentWindow = ref.contentWindow as ContentWindow;
 
     // Derive the real target URL for display only when reliable:
     // - Scramjet: strip the /scramjet/ prefix and decode the remainder
     // - UV: when __uv$location is present, use it
     // - Otherwise: do not overwrite the displayed URL (avoid about:blank or encoded proxy paths)
-    const origin = window.location.origin
-    const rawHref = contentWindow.location.href
-    let targetHref: string | undefined
+    const origin = window.location.origin;
+    const rawHref = contentWindow.location.href;
+    let targetHref: string | undefined;
 
     if (rawHref.startsWith(`${origin}/scramjet/`)) {
-      const enc = rawHref.slice(`${origin}/scramjet/`.length)
+      const enc = rawHref.slice(`${origin}/scramjet/`.length);
       try {
-        targetHref = decodeURIComponent(enc)
+        targetHref = decodeURIComponent(enc);
       } catch {
-        targetHref = enc
+        targetHref = enc;
       }
     } else if ((contentWindow as any).__uv$location?.href) {
-      targetHref = (contentWindow as any).__uv$location.href
+      targetHref = (contentWindow as any).__uv$location.href;
     }
 
     // Only set URL when we have a clean destination URL
     if (targetHref) {
-      setUrl(targetHref)
+      setUrl(targetHref);
     }
 
-    contentWindow.addEventListener('keydown', handlePanicKey)
+    contentWindow.addEventListener("keydown", handlePanicKey);
 
     // Use the best-known destination URL for checks
-    const displayUrl = targetHref ?? url()
+    const displayUrl = targetHref ?? url();
 
-    setBookmarked(bookmarks().some((val) => val.url === displayUrl))
+    setBookmarked(bookmarks().some((val) => val.url === displayUrl));
 
-    let hostname = ''
+    let hostname = "";
     try {
-      hostname = new URL(displayUrl).hostname
+      hostname = new URL(displayUrl).hostname;
     } catch {
-      hostname = contentWindow.location.hostname
+      hostname = contentWindow.location.hostname;
     }
 
-    const patch = patches.find((x) => hostname.includes(x.hostname))
-    if (!patch) return
+    const patch = patches.find((x) => hostname.includes(x.hostname));
+    if (!patch) return;
 
-    if (patch.suggestedTransport && patch.suggestedTransport !== (store('transport') as TransportData).transport) {
+    if (
+      patch.suggestedTransport &&
+      patch.suggestedTransport !==
+        (store("transport") as TransportData).transport
+    ) {
       toast.custom((x) => {
         return (
           <div class="toast toast-center toast-top">
             <div class="alert alert-warning">
               <TriangleAlert />
               <span>
-                This website might run better with the <span class="font-semibold">{patch.suggestedTransport}</span> transport enabled. <br />{' '}
+                This website might run better with the{" "}
+                <span class="font-semibold">{patch.suggestedTransport}</span>{" "}
+                transport enabled. <br />{" "}
                 <span
                   class="cursor-pointer underline underline-offset-4"
                   onMouseDown={() => {
-                    handleTransport(patch.suggestedTransport)
-                    toast.dismiss(x.id)
-                    contentWindow.location.reload()
+                    handleTransport(patch.suggestedTransport);
+                    toast.dismiss(x.id);
+                    contentWindow.location.reload();
                   }}
                 >
                   Set Transport
@@ -112,8 +136,8 @@ export default function Route() {
               </span>
             </div>
           </div>
-        )
-      })
+        );
+      });
     }
 
     if (patch.works === false) {
@@ -125,12 +149,12 @@ export default function Route() {
               <span>This website is known not to work correctly.</span>
             </div>
           </div>
-        )
-      })
+        );
+      });
     }
 
     if (patch.execute) {
-      patch.execute(contentWindow)
+      patch.execute(contentWindow);
     }
   }
   return (
@@ -145,15 +169,20 @@ export default function Route() {
         title="Viewer"
       />
 
-      <div class={clsx('rounded-m join fixed left-1/2 z-40 -translate-x-1/2 bg-base-200 px-2 border border-base-300 transition-[bottom] duration-300', showControls() ? 'bottom-2' : '-bottom-16')}>
+      <div
+        class={clsx(
+          "rounded-m join fixed left-1/2 z-40 -translate-x-1/2 bg-base-200 px-2 border border-base-300 transition-[bottom] duration-300",
+          showControls() ? "bottom-2" : "-bottom-16",
+        )}
+      >
         <div class="tooltip" data-tip="Go back">
           <button
             class="btn btn-square join-item bg-base-200"
             type="button"
             onClick={() => {
-              if (!ref || !ref.contentWindow) return
-              const contentWindow = ref.contentWindow as ContentWindow
-              contentWindow.history.back()
+              if (!ref || !ref.contentWindow) return;
+              const contentWindow = ref.contentWindow as ContentWindow;
+              contentWindow.history.back();
             }}
           >
             <ChevronLeft class="h-5 w-5" />
@@ -165,9 +194,9 @@ export default function Route() {
             class="btn btn-square join-item bg-base-200"
             type="button"
             onClick={() => {
-              if (!ref || !ref.contentWindow) return
-              const contentWindow = ref.contentWindow as ContentWindow
-              contentWindow.location.reload()
+              if (!ref || !ref.contentWindow) return;
+              const contentWindow = ref.contentWindow as ContentWindow;
+              contentWindow.location.reload();
             }}
           >
             <RotateCw class="h-5 w-5" />
@@ -178,10 +207,10 @@ export default function Route() {
             class="btn btn-square join-item bg-base-200"
             type="button"
             onClick={() => {
-              if (!ref || !ref.contentWindow) return
-              const contentWindow = ref.contentWindow as ContentWindow
+              if (!ref || !ref.contentWindow) return;
+              const contentWindow = ref.contentWindow as ContentWindow;
 
-              contentWindow.history.forward()
+              contentWindow.history.forward();
             }}
           >
             <ChevronRight class="h-5 w-5" />
@@ -193,18 +222,20 @@ export default function Route() {
           type="text"
           class="input join-item w-96 bg-base-200 focus:outline-none "
           onKeyDown={(e) => {
-            if (e.key !== 'Enter') return
-            if (!ref || !ref.contentWindow) return
-            const engine = (store.local.get('proxyEngine') as ProxyEngineData)?.engine || 'uv'
-            const dest = formatSearch(e.currentTarget.value)
-            if (engine === 'scramjet') {
-              ref.src = `/scramjet/${dest}`
+            if (e.key !== "Enter") return;
+            if (!ref || !ref.contentWindow) return;
+            const engine =
+              (store.local.get("proxyEngine") as ProxyEngineData)?.engine ||
+              "uv";
+            const dest = formatSearch(e.currentTarget.value);
+            if (engine === "scramjet") {
+              ref.src = `/scramjet/${dest}`;
             } else {
-              ref.src = `/uv/${encodeXor(dest)}`
+              ref.src = `/uv/${encodeXor(dest)}`;
             }
             // Reflect the real destination immediately
-            setUrl(dest)
-            e.currentTarget.blur()
+            setUrl(dest);
+            e.currentTarget.blur();
           }}
         />
         <div class="tooltip" data-tip="Return to home screen">
@@ -213,26 +244,27 @@ export default function Route() {
           </A>
         </div>
 
-        {(store.local.get('devtools') as DevtoolsData)?.enabled ? (
+        {(store.local.get("devtools") as DevtoolsData)?.enabled ? (
           <div class="tooltip" data-tip="Toggle devtools">
             <button
               class="btn btn-square join-item bg-base-200"
               type="button"
               onClick={() => {
-                if (!ref || !ref.contentWindow) return
-                const contentWindow = ref.contentWindow as ContentWindow
+                if (!ref || !ref.contentWindow) return;
+                const contentWindow = ref.contentWindow as ContentWindow;
 
                 if (contentWindow.eruda?._isInit) {
-                  contentWindow.eruda.destroy()
+                  contentWindow.eruda.destroy();
                 } else {
-                  const erudaScript = contentWindow.document.createElement('script')
-                  erudaScript.src = 'https://cdn.jsdelivr.net/npm/eruda'
+                  const erudaScript =
+                    contentWindow.document.createElement("script");
+                  erudaScript.src = "https://cdn.jsdelivr.net/npm/eruda";
                   erudaScript.onload = () => {
-                    if (!contentWindow) return
-                    contentWindow.eruda.init()
-                    contentWindow.eruda.show()
-                  }
-                  contentWindow.document.body.appendChild(erudaScript)
+                    if (!contentWindow) return;
+                    contentWindow.eruda.init();
+                    contentWindow.eruda.show();
+                  };
+                  contentWindow.document.body.appendChild(erudaScript);
                 }
               }}
             >
@@ -241,47 +273,55 @@ export default function Route() {
           </div>
         ) : null}
 
-        <div class="tooltip" data-tip={!bookmarked() ? 'Bookmark' : 'Remove bookmark'}>
+        <div
+          class="tooltip"
+          data-tip={!bookmarked() ? "Bookmark" : "Remove bookmark"}
+        >
           <button
             class="btn btn-square join-item bg-base-200"
             type="button"
             onClick={async () => {
-              if (!ref || !ref.contentWindow) return
-              const contentWindow = ref.contentWindow as ContentWindow
+              if (!ref || !ref.contentWindow) return;
+              const contentWindow = ref.contentWindow as ContentWindow;
 
               // Compute the real target URL for bookmarking:
               // - Scramjet: strip the /scramjet/ prefix and decode
               // - UV: use __uv$location.href if available
               // - Fallback: use the current displayed url() (avoid about:blank or proxy-prefixed href)
-              const origin = window.location.origin
-              const rawHref = contentWindow.location.href
-              let targetHref: string | undefined
+              const origin = window.location.origin;
+              const rawHref = contentWindow.location.href;
+              let targetHref: string | undefined;
 
               if (rawHref.startsWith(`${origin}/scramjet/`)) {
-                const enc = rawHref.slice(`${origin}/scramjet/`.length)
+                const enc = rawHref.slice(`${origin}/scramjet/`.length);
                 try {
-                  targetHref = decodeURIComponent(enc)
+                  targetHref = decodeURIComponent(enc);
                 } catch {
-                  targetHref = enc
+                  targetHref = enc;
                 }
               } else if ((contentWindow as any).__uv$location?.href) {
-                targetHref = (contentWindow as any).__uv$location.href
+                targetHref = (contentWindow as any).__uv$location.href;
               } else {
-                targetHref = url()
+                targetHref = url();
               }
 
-              const finalHref = targetHref ?? url()
+              const finalHref = targetHref ?? url();
 
               const { status } = handleBookmark({
                 title: contentWindow.document.title,
                 url: finalHref,
-                image: await getFavicon(contentWindow)
-              })
+                image: await getFavicon(contentWindow),
+              });
 
-              setBookmarked(status === 'added')
+              setBookmarked(status === "added");
             }}
           >
-            <Bookmark class={clsx('h-5 w-5', bookmarked() ? 'fill-base-content' : 'fill-none')} />
+            <Bookmark
+              class={clsx(
+                "h-5 w-5",
+                bookmarked() ? "fill-base-content" : "fill-none",
+              )}
+            />
           </button>
         </div>
         <div class="tooltip" data-tip="Pop out tab">
@@ -289,10 +329,10 @@ export default function Route() {
             class="btn btn-square join-item bg-base-200"
             type="button"
             onClick={() => {
-              if (!ref || !ref.contentWindow) return
-              const contentWindow = ref.contentWindow as ContentWindow
+              if (!ref || !ref.contentWindow) return;
+              const contentWindow = ref.contentWindow as ContentWindow;
 
-              openCloakWindow(contentWindow.location.href, false)
+              openCloakWindow(contentWindow.location.href, false);
             }}
           >
             <SquareArrowOutUpRight class="h-5 w-5" />
@@ -303,7 +343,7 @@ export default function Route() {
             class="btn btn-square join-item bg-base-200"
             type="button"
             onClick={() => {
-              setShowControls(false)
+              setShowControls(false);
             }}
           >
             <PanelBottomClose class="h-5 w-5" />
@@ -311,13 +351,22 @@ export default function Route() {
         </div>
       </div>
 
-      <div class={clsx('fixed bottom-2 right-2 transition-opacity duration-300', showControls() ? 'opacity-0 pointer-events-none' : 'opacity-100')}>
+      <div
+        class={clsx(
+          "fixed bottom-2 right-2 transition-opacity duration-300",
+          showControls() ? "opacity-0 pointer-events-none" : "opacity-100",
+        )}
+      >
         <div class="tooltip tooltip-left" data-tip="Maximize control bar">
-          <button type="button" class="btn btn-square btn-ghost" onClick={() => setShowControls(true)}>
+          <button
+            type="button"
+            class="btn btn-square btn-ghost"
+            onClick={() => setShowControls(true)}
+          >
             <PanelBottomOpen />
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }
