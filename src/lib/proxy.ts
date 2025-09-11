@@ -97,7 +97,9 @@ export async function setupProxy() {
         await mw.reloadPlugins();
       }
     } catch (e) {
-      console.log("Reflux middleware reload not available; plugins will load on next request");
+      console.log(
+        "Reflux middleware reload not available; plugins will load on next request",
+      );
     }
 
     setProxyStatus(true);

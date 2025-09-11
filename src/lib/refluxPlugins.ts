@@ -16,14 +16,16 @@ export type PluginConfig = {
   description: string;
   sites: string[] | ["*"];
   enabled: boolean;
-  function: string;
+  functionFile: string;
 };
 
 let apiSingleton: RefluxAPIType | null = null;
 
 export function getRefluxAPI(): RefluxAPIType {
   // Prefer an externally provided instance (if transport exposes one)
-  const external = (globalThis as any).RefluxControlAPI || (globalThis as any).RefluxAPIInstance;
+  const external =
+    (globalThis as any).RefluxControlAPI ||
+    (globalThis as any).RefluxAPIInstance;
   if (external) return external as RefluxAPIType;
 
   if (!apiSingleton) {
@@ -59,7 +61,14 @@ export async function disablePlugin(name: string): Promise<void> {
   }
 }
 
-export async function listPlugins(): Promise<Array<{ name: string; sites: string[] | ["*"]; enabled: boolean; function?: string }>> {
+export async function listPlugins(): Promise<
+  Array<{
+    name: string;
+    sites: string[] | ["*"];
+    enabled: boolean;
+    function?: string;
+  }>
+> {
   const api = getRefluxAPI();
   return api.listPlugins();
 }
@@ -77,16 +86,35 @@ export async function getEnabledPlugins(): Promise<string[]> {
 // Load plugins from JSON configuration file
 export async function loadPluginsFromJSON(): Promise<PluginConfig[]> {
   try {
-    const response = await fetch('/plugins.json');
+    const response = await fetch("/plugins/plugins.json");
     if (!response.ok) {
-      console.warn('[RefluxPlugins] Failed to load plugins.json');
+      console.warn("[RefluxPlugins] Failed to load plugins/plugins.json");
       return [];
     }
     const data = await response.json();
     return data.plugins || [];
   } catch (error) {
-    console.error('[RefluxPlugins] Error loading plugins.json:', error);
+    console.error("[RefluxPlugins] Error loading plugins/plugins.json:", error);
     return [];
+  }
+}
+
+// Load plugin function from JS file
+export async function loadPluginFunction(
+  functionFile: string,
+): Promise<string> {
+  try {
+    const response = await fetch(`/plugins/${functionFile}`);
+    if (!response.ok) {
+      throw new Error(`Failed to load plugin file: ${functionFile}`);
+    }
+    return await response.text();
+  } catch (error) {
+    console.error(
+      `[RefluxPlugins] Error loading plugin file ${functionFile}:`,
+      error,
+    );
+    throw error;
   }
 }
 
@@ -95,41 +123,47 @@ export function savePluginsToLocalStorage(plugins: PluginConfig[]): void {
   try {
     const dataToSave = {
       plugins,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
-    localStorage.setItem('reflux-plugins', JSON.stringify(dataToSave));
-    console.log('[RefluxPlugins] Successfully saved plugins to localStorage');
+    localStorage.setItem("reflux-plugins", JSON.stringify(dataToSave));
+    console.log("[RefluxPlugins] Successfully saved plugins to localStorage");
   } catch (error) {
-    console.error('[RefluxPlugins] Failed to save plugins to localStorage:', error);
-    throw new Error('Failed to save plugin configuration');
+    console.error(
+      "[RefluxPlugins] Failed to save plugins to localStorage:",
+      error,
+    );
+    throw new Error("Failed to save plugin configuration");
   }
 }
 
 // Load plugins from local storage with fallback to JSON
 export async function loadPluginsConfig(): Promise<PluginConfig[]> {
   try {
-    const stored = localStorage.getItem('reflux-plugins');
+    const stored = localStorage.getItem("reflux-plugins");
     if (stored) {
       const data = JSON.parse(stored);
       // Handle both old and new format
       const pluginsArray = data.plugins || data;
       if (Array.isArray(pluginsArray)) {
-        console.log('[RefluxPlugins] Loaded plugins from localStorage');
+        console.log("[RefluxPlugins] Loaded plugins from localStorage");
         return pluginsArray;
       }
     }
   } catch (error) {
-    console.warn('[RefluxPlugins] Error loading from localStorage:', error);
+    console.warn("[RefluxPlugins] Error loading from localStorage:", error);
     // Clear corrupted localStorage data
     try {
-      localStorage.removeItem('reflux-plugins');
+      localStorage.removeItem("reflux-plugins");
     } catch (clearError) {
-      console.warn('[RefluxPlugins] Failed to clear corrupted localStorage:', clearError);
+      console.warn(
+        "[RefluxPlugins] Failed to clear corrupted localStorage:",
+        clearError,
+      );
     }
   }
-  
+
   // Fallback to JSON file
-  console.log('[RefluxPlugins] Falling back to JSON file');
+  console.log("[RefluxPlugins] Falling back to JSON file");
   return loadPluginsFromJSON();
 }
 
@@ -137,52 +171,69 @@ export async function loadPluginsConfig(): Promise<PluginConfig[]> {
 export async function togglePlugin(pluginName: string): Promise<boolean> {
   try {
     const plugins = await loadPluginsConfig();
-    const plugin = plugins.find(p => p.name === pluginName);
-    
+    const plugin = plugins.find((p) => p.name === pluginName);
+
     if (!plugin) {
       throw new Error(`Plugin ${pluginName} not found in configuration`);
     }
-    
+
     const newState = !plugin.enabled;
     plugin.enabled = newState;
-    
+
     // Save to localStorage first
     savePluginsToLocalStorage(plugins);
-    
+
     // Then update the actual plugin state in the API
     try {
       if (newState) {
+        // Load the plugin function from its file
+        const functionCode = await loadPluginFunction(plugin.functionFile);
+
         // First ensure the plugin is added if it doesn't exist
         const pluginDef: PluginDefinition = {
           name: plugin.name,
           sites: plugin.sites,
-          function: plugin.function
+          function: functionCode,
         };
         await addPlugin(pluginDef);
         await enablePlugin(pluginName);
-        console.log(`[RefluxPlugins] Successfully enabled plugin: ${pluginName}`);
+        console.log(
+          `[RefluxPlugins] Successfully enabled plugin: ${pluginName}`,
+        );
       } else {
         await disablePlugin(pluginName);
-        console.log(`[RefluxPlugins] Successfully disabled plugin: ${pluginName}`);
+        console.log(
+          `[RefluxPlugins] Successfully disabled plugin: ${pluginName}`,
+        );
       }
-      
+
       // Reinitialize the plugin system to apply changes immediately
-      console.log(`[RefluxPlugins] Reinitializing plugin system after toggle...`);
+      console.log(
+        `[RefluxPlugins] Reinitializing plugin system after toggle...`,
+      );
       await initDefaultPlugins();
-      
     } catch (apiError) {
-      console.warn(`[RefluxPlugins] API update failed for ${pluginName}, but localStorage updated:`, apiError);
+      console.warn(
+        `[RefluxPlugins] API update failed for ${pluginName}, but localStorage updated:`,
+        apiError,
+      );
       // Still try to reinitialize even if individual plugin operations failed
       try {
         await initDefaultPlugins();
       } catch (initError) {
-        console.error(`[RefluxPlugins] Failed to reinitialize plugin system:`, initError);
+        console.error(
+          `[RefluxPlugins] Failed to reinitialize plugin system:`,
+          initError,
+        );
       }
     }
-    
+
     return newState;
   } catch (error) {
-    console.error(`[RefluxPlugins] Failed to toggle plugin ${pluginName}:`, error);
+    console.error(
+      `[RefluxPlugins] Failed to toggle plugin ${pluginName}:`,
+      error,
+    );
     throw error;
   }
 }
@@ -190,38 +241,57 @@ export async function togglePlugin(pluginName: string): Promise<boolean> {
 export async function initDefaultPlugins(): Promise<void> {
   try {
     const pluginsConfig = await loadPluginsConfig();
-    
+
     // Get all currently loaded plugins from the API
     const currentPlugins = await listPlugins().catch(() => []);
-    const currentPluginNames = currentPlugins.map(p => p.name);
-    
+    const currentPluginNames = currentPlugins.map((p) => p.name);
+
     // Disable/remove plugins that should be disabled
-    const disabledPlugins = pluginsConfig.filter(p => !p.enabled);
+    const disabledPlugins = pluginsConfig.filter((p) => !p.enabled);
     for (const plugin of disabledPlugins) {
       if (currentPluginNames.includes(plugin.name)) {
         try {
           await disablePlugin(plugin.name);
           console.log(`[RefluxPlugins] Disabled plugin: ${plugin.name}`);
         } catch (error) {
-          console.warn(`[RefluxPlugins] Failed to disable plugin ${plugin.name}:`, error);
+          console.warn(
+            `[RefluxPlugins] Failed to disable plugin ${plugin.name}:`,
+            error,
+          );
         }
       }
     }
-    
+
     // Enable plugins that should be enabled
-    const enabledPlugins = pluginsConfig
-      .filter(p => p.enabled)
-      .map(p => ({
-        name: p.name,
-        sites: p.sites,
-        function: p.function
-      }));
-    
+    const enabledPluginsConfig = pluginsConfig.filter((p) => p.enabled);
+    const enabledPlugins: PluginDefinition[] = [];
+
+    // Load function code for each enabled plugin
+    for (const pluginConfig of enabledPluginsConfig) {
+      try {
+        const functionCode = await loadPluginFunction(
+          pluginConfig.functionFile,
+        );
+        enabledPlugins.push({
+          name: pluginConfig.name,
+          sites: pluginConfig.sites,
+          function: functionCode,
+        });
+      } catch (error) {
+        console.error(
+          `[RefluxPlugins] Failed to load function for plugin ${pluginConfig.name}:`,
+          error,
+        );
+      }
+    }
+
     await ensurePlugins(enabledPlugins);
-    
+
     const list = await listPlugins();
-    console.log("[RefluxPlugins] Plugin initialization complete. Currently loaded:", 
-      list.map(p => `${p.name} (${p.enabled ? 'enabled' : 'disabled'})`));
+    console.log(
+      "[RefluxPlugins] Plugin initialization complete. Currently loaded:",
+      list.map((p) => `${p.name} (${p.enabled ? "enabled" : "disabled"})`),
+    );
   } catch (err) {
     console.error("[RefluxPlugins] Initialization failed:", err);
   }
@@ -233,7 +303,10 @@ export async function refreshPluginSystem(): Promise<void> {
   await initDefaultPlugins();
 }
 
-export async function updatePluginSites(name: string, sites: string[] | ["*"]): Promise<void> {
+export async function updatePluginSites(
+  name: string,
+  sites: string[] | ["*"],
+): Promise<void> {
   const api = getRefluxAPI();
   if (typeof (api as any).updatePluginSites === "function") {
     await (api as any).updatePluginSites(name, sites);
@@ -255,8 +328,12 @@ function sameSites(a: string[] | ["*"], b: string[] | ["*"]): boolean {
   return as === bs;
 }
 
-export async function ensurePlugins(plugins: PluginDefinition[]): Promise<void> {
-  const existing = await listPlugins().catch(() => [] as Awaited<ReturnType<typeof listPlugins>>);
+export async function ensurePlugins(
+  plugins: PluginDefinition[],
+): Promise<void> {
+  const existing = await listPlugins().catch(
+    () => [] as Awaited<ReturnType<typeof listPlugins>>,
+  );
   const existingMap = new Map(existing.map((p) => [p.name, p]));
   for (const plugin of plugins) {
     const curr = existingMap.get(plugin.name);

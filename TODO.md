@@ -2,7 +2,7 @@
 - [ ] **Ambient-like shortcut cards**
 - [ ] Better UI
 - [ ] socks5/tor routing like holy ubo for wisp
-- [X] plugins
+- [x] plugins
 - [ ] vertical tabs
 - [ ] custom themes
 - [ ] astro rewrite
@@ -21,3 +21,4 @@
 - [ ] make the images optimized
 - [ ] **make notification popups be on the bottom left**
 - [ ] fully structure this thing after astro rewrite
+- [ ] better readme lmfao (try to explain everything in depth)

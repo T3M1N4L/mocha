@@ -1,0 +1,12 @@
+{
+  "plugins": [
+    {
+      "name": "vencord",
+      "displayName": "Vencord",
+      "description": "vencord on a proxy",
+      "sites": ["www.discord.com", "discord.com"],
+      "enabled": false,
+      "functionFile": "vencord.js"
+    }
+  ]
+}

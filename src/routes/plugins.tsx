@@ -1,17 +1,23 @@
 import { createSignal, onMount, For, createMemo } from "solid-js";
 import { Package, CircleCheck, CircleX, RotateCw, Save } from "lucide-solid";
 import type { PluginConfig } from "../lib/refluxPlugins";
-import { loadPluginsConfig, savePluginsToLocalStorage, refreshPluginSystem } from "../lib/refluxPlugins";
+import {
+  loadPluginsConfig,
+  savePluginsToLocalStorage,
+  refreshPluginSystem,
+} from "../lib/refluxPlugins";
 import toast from "solid-toast";
 
 export default function Plugins() {
   const [plugins, setPlugins] = createSignal<PluginConfig[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [saving, setSaving] = createSignal(false);
-  
+
   // Track pending changes (plugin name -> new enabled state)
-  const [pendingChanges, setPendingChanges] = createSignal<Record<string, boolean>>({});
-  
+  const [pendingChanges, setPendingChanges] = createSignal<
+    Record<string, boolean>
+  >({});
+
   // Check if there are any unsaved changes
   const hasChanges = createMemo(() => Object.keys(pendingChanges()).length > 0);
 
@@ -26,7 +32,7 @@ export default function Plugins() {
       setLoading(true);
       const pluginConfigs = await loadPluginsConfig();
       setPlugins(pluginConfigs);
-      console.log('[PluginsPage] Loaded plugins:', pluginConfigs.length);
+      console.log("[PluginsPage] Loaded plugins:", pluginConfigs.length);
     } catch (error) {
       console.error("Failed to load plugins:", error);
       toast.custom(() => {
@@ -45,12 +51,12 @@ export default function Plugins() {
   };
 
   const refreshPlugins = async () => {
-    console.log('[PluginsPage] Refreshing plugins...');
+    console.log("[PluginsPage] Refreshing plugins...");
     try {
       setLoading(true);
       await refreshPluginSystem();
       await loadPlugins();
-      
+
       toast.custom(() => {
         return (
           <div class="toast toast-center toast-top z-[9999]">
@@ -62,7 +68,7 @@ export default function Plugins() {
         );
       });
     } catch (error) {
-      console.error('[PluginsPage] Failed to refresh plugins:', error);
+      console.error("[PluginsPage] Failed to refresh plugins:", error);
       toast.custom(() => {
         return (
           <div class="toast toast-center toast-top z-[9999]">
@@ -79,38 +85,39 @@ export default function Plugins() {
   };
 
   const handleToggle = (pluginName: string) => {
-    const plugin = plugins().find(p => p.name === pluginName);
+    const plugin = plugins().find((p) => p.name === pluginName);
     if (!plugin) return;
-    
-    const currentState = pendingChanges()[pluginName] !== undefined 
-      ? pendingChanges()[pluginName]
-      : plugin.enabled;
-    
+
+    const currentState =
+      pendingChanges()[pluginName] !== undefined
+        ? pendingChanges()[pluginName]
+        : plugin.enabled;
+
     const newState = !currentState;
-    
-    setPendingChanges(prev => ({
+
+    setPendingChanges((prev) => ({
       ...prev,
-      [pluginName]: newState
+      [pluginName]: newState,
     }));
   };
 
   const saveChanges = async () => {
     if (!hasChanges()) return;
-    
+
     try {
       setSaving(true);
-      
+
       // Apply pending changes to the plugins array
-      const updatedPlugins = plugins().map(plugin => {
+      const updatedPlugins = plugins().map((plugin) => {
         const pendingState = pendingChanges()[plugin.name];
-        return pendingState !== undefined 
+        return pendingState !== undefined
           ? { ...plugin, enabled: pendingState }
           : plugin;
       });
-      
+
       // Save to localStorage
       savePluginsToLocalStorage(updatedPlugins);
-      
+
       // Show success message
       toast.custom(() => {
         return (
@@ -122,12 +129,11 @@ export default function Plugins() {
           </div>
         );
       });
-      
+
       // Wait a moment for the toast to show, then reload
       setTimeout(() => {
         window.location.reload();
       }, 1500);
-      
     } catch (error) {
       console.error("Failed to save plugin changes:", error);
       toast.custom(() => {
@@ -183,7 +189,7 @@ export default function Plugins() {
           <div class="flex items-center gap-2">
             {hasChanges() && (
               <>
-                <button 
+                <button
                   class="btn btn-outline btn-sm"
                   onClick={discardChanges}
                   disabled={saving()}
@@ -191,7 +197,7 @@ export default function Plugins() {
                   <CircleX class="h-4 w-4" />
                   Discard
                 </button>
-                <button 
+                <button
                   class="btn btn-primary btn-sm"
                   onClick={saveChanges}
                   disabled={saving()}
@@ -201,24 +207,27 @@ export default function Plugins() {
                   ) : (
                     <Save class="h-4 w-4" />
                   )}
-                  {saving() ? 'Saving...' : 'Save & Reload'}
+                  {saving() ? "Saving..." : "Save & Reload"}
                 </button>
               </>
             )}
-            <button 
+            <button
               class="btn btn-outline btn-sm"
               onClick={refreshPlugins}
               disabled={loading() || saving()}
             >
-              <RotateCw class={`h-4 w-4 ${loading() ? 'animate-spin' : ''}`} />
+              <RotateCw class={`h-4 w-4 ${loading() ? "animate-spin" : ""}`} />
               Refresh
             </button>
           </div>
         </div>
         <p class="text-base-content/70 text-lg">
-          Manage your Reflux plugins. Make changes and click "Save & Reload" to apply them.
+          Manage your Reflux plugins. Make changes and click "Save & Reload" to
+          apply them.
           {hasChanges() && (
-            <span class="text-warning ml-2 font-semibold">• You have unsaved changes</span>
+            <span class="text-warning ml-2 font-semibold">
+              • You have unsaved changes
+            </span>
           )}
         </p>
       </div>
@@ -237,15 +246,23 @@ export default function Plugins() {
                   <div class="flex items-center justify-between">
                     <div class="flex-1">
                       <div class="flex items-center gap-3 mb-2">
-                        <h3 class="text-xl font-semibold">{plugin.displayName}</h3>
-                        <div class={`badge ${getEffectiveState(plugin) ? 'badge-success' : 'badge-ghost'}`}>
-                          {getEffectiveState(plugin) ? 'Enabled' : 'Disabled'}
+                        <h3 class="text-xl font-semibold">
+                          {plugin.displayName}
+                        </h3>
+                        <div
+                          class={`badge ${getEffectiveState(plugin) ? "badge-success" : "badge-ghost"}`}
+                        >
+                          {getEffectiveState(plugin) ? "Enabled" : "Disabled"}
                           {pendingChanges()[plugin.name] !== undefined && (
-                            <span class="ml-1 text-xs opacity-75">(pending)</span>
+                            <span class="ml-1 text-xs opacity-75">
+                              (pending)
+                            </span>
                           )}
                         </div>
                       </div>
-                      <p class="text-base-content/70 mb-3">{plugin.description}</p>
+                      <p class="text-base-content/70 mb-3">
+                        {plugin.description}
+                      </p>
                       <div class="flex flex-wrap gap-2 text-sm">
                         <span class="text-base-content/50">Sites:</span>
                         <span class="font-mono text-xs bg-base-300 px-2 py-1 rounded">
@@ -275,7 +292,8 @@ export default function Plugins() {
           <Package class="h-16 w-16 text-base-content/30 mx-auto mb-4" />
           <h3 class="text-xl font-semibold mb-2">No plugins found</h3>
           <p class="text-base-content/70">
-            No plugins are configured. Check your plugins.json file or contact support.
+            No plugins are configured. Check your plugins.json file or contact
+            support.
           </p>
         </div>
       )}
@@ -283,9 +301,12 @@ export default function Plugins() {
       <div class="mt-8 p-4 bg-base-300 rounded-box">
         <h4 class="font-semibold mb-2">Plugin Configuration</h4>
         <p class="text-sm text-base-content/70">
-          Plugins are loaded from <code class="bg-base-100 px-1 py-0.5 rounded">public/plugins.json</code>. 
-          Changes to plugin states are saved locally and will persist across browser sessions.
-          Adding custom plugins will be added soon.
+          Plugins are loaded from{" "}
+          <code class="bg-base-100 px-1 py-0.5 rounded">
+            public/plugins.json
+          </code>
+          . Changes to plugin states are saved locally and will persist across
+          browser sessions. Adding custom plugins will be added soon.
         </p>
       </div>
     </div>
