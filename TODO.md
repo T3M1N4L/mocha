@@ -19,6 +19,6 @@
 - [ ] scramjet as main proccy after fixing the discord issue
 - [ ] better daisy ui use oklch and add support for custom themes (themes.css file instead of importing daisy ui themes)
 - [ ] make the images optimized
-- [ ] **make notification popups be on the bottom left**
+- [ ] **make notification popups be on the bottom left**, and make it extend based on the text
 - [ ] fully structure this thing after astro rewrite
 - [ ] better readme lmfao (try to explain everything in depth)

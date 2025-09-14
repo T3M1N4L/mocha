@@ -264,15 +264,31 @@ export default function Plugins() {
       };
 
       if (editingCustomPlugin()) {
+        // Update the custom plugin
         updateCustomPlugin(editingCustomPlugin()!.id, pluginData);
+
+        // Add to pending changes to trigger the "Save & Reload" workflow
+        const currentPlugin = plugins().find((p) => p.name === name);
+        if (currentPlugin) {
+          setPendingChanges((prev) => ({
+            ...prev,
+            [name]: currentPlugin.enabled, // Keep current enabled state as pending
+          }));
+        }
+
         toast.custom(() => (
           <div class="toast toast-center toast-top z-[9999]">
             <div class="alert alert-success w-80">
               <CircleCheck />
-              <span>Plugin updated successfully!</span>
+              <span>
+                Plugin updated! Click "Save & Reload" to apply changes.
+              </span>
             </div>
           </div>
         ));
+
+        customPluginModal.close();
+        loadPlugins(); // Refresh to show updated plugin data
       } else {
         createCustomPlugin(pluginData);
         toast.custom(() => (
@@ -283,10 +299,10 @@ export default function Plugins() {
             </div>
           </div>
         ));
-      }
 
-      customPluginModal.close();
-      loadPlugins(); // Refresh the plugins list
+        customPluginModal.close();
+        loadPlugins(); // Refresh the plugins list for new plugins
+      }
     } catch (error: any) {
       toast.custom(() => (
         <div class="toast toast-center toast-top z-[9999]">
