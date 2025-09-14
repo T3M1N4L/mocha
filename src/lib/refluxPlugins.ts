@@ -99,10 +99,28 @@ export async function loadPluginsFromJSON(): Promise<PluginConfig[]> {
   }
 }
 
-// Load plugin function from JS file
+// Load plugin function from JS file or return custom plugin code
 export async function loadPluginFunction(
   functionFile: string,
 ): Promise<string> {
+  // Check if this is a custom plugin
+  if (functionFile.startsWith("__custom_")) {
+    const customPluginId = functionFile.replace("__custom_", "");
+    const { getCustomPlugin } = await import("./customPlugins");
+    const customPlugin = getCustomPlugin(customPluginId);
+
+    if (!customPlugin) {
+      throw new Error(`Custom plugin with ID "${customPluginId}" not found`);
+    }
+
+    console.log(
+      "[RefluxPlugins] Loaded custom plugin code:",
+      customPlugin.name,
+    );
+    return customPlugin.jsCode;
+  }
+
+  // Load from regular JS file
   try {
     const response = await fetch(`/plugins/${functionFile}`);
     if (!response.ok) {
@@ -136,8 +154,25 @@ export function savePluginsToLocalStorage(plugins: PluginConfig[]): void {
   }
 }
 
-// Load plugins from local storage with fallback to JSON
+// Load plugins from local storage with fallback to JSON, including custom plugins
 export async function loadPluginsConfig(): Promise<PluginConfig[]> {
+  // First try to get all plugins (default + custom) with proper state management
+  try {
+    const { getAllPluginsConfig } = await import("./customPlugins");
+    const allPlugins = await getAllPluginsConfig();
+    console.log(
+      "[RefluxPlugins] Loaded all plugins (default + custom):",
+      allPlugins.length,
+    );
+    return allPlugins;
+  } catch (error) {
+    console.error(
+      "[RefluxPlugins] Error loading plugins with custom support:",
+      error,
+    );
+  }
+
+  // Fallback to original logic
   try {
     const stored = localStorage.getItem("reflux-plugins");
     if (stored) {
@@ -162,7 +197,7 @@ export async function loadPluginsConfig(): Promise<PluginConfig[]> {
     }
   }
 
-  // Fallback to JSON file
+  // Final fallback to JSON file
   console.log("[RefluxPlugins] Falling back to JSON file");
   return loadPluginsFromJSON();
 }

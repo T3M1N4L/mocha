@@ -25,30 +25,60 @@ export default function Navbar() {
             </div>
           </A>
         </div>
-        <div class="navbar-end gap-2">
+        <div class="navbar-end gap-1">
           <A href="/games">
-            <button class="btn btn-ghost h-10 min-h-10" type="button">
-              <Joystick class="h-5 w-5" /> Games
+            <button
+              class="btn btn-ghost h-10 min-h-10 group overflow-hidden px-2 transition-all duration-700 ease-in-out"
+              type="button"
+            >
+              <Joystick class="h-5 w-5 flex-shrink-0" />
+              <span class="ml-0 max-w-0 group-hover:max-w-[60px] transition-all duration-700 ease-in-out whitespace-nowrap overflow-hidden">
+                Games
+              </span>
             </button>
           </A>
           <A href="/shortcuts">
-            <button class="btn btn-ghost h-10 min-h-10" type="button">
-              <Layers class="h-5 w-5" /> Shortcuts
+            <button
+              class="btn btn-ghost h-10 min-h-10 group overflow-hidden px-2 transition-all duration-700 ease-in-out"
+              type="button"
+            >
+              <Layers class="h-5 w-5 flex-shrink-0" />
+              <span class="ml-0 max-w-0 group-hover:max-w-[75px] transition-all duration-700 ease-in-out whitespace-nowrap overflow-hidden">
+                Shortcuts
+              </span>
             </button>
           </A>
           <A href="/bookmarks">
-            <button class="btn btn-ghost h-10 min-h-10" type="button">
-              <Bookmark class="h-5 w-5" /> Bookmarks
+            <button
+              class="btn btn-ghost h-10 min-h-10 group overflow-hidden px-2 transition-all duration-700 ease-in-out"
+              type="button"
+            >
+              <Bookmark class="h-5 w-5 flex-shrink-0" />
+              <span class="ml-0 max-w-0 group-hover:max-w-[85px] transition-all duration-700 ease-in-out whitespace-nowrap overflow-hidden">
+                Bookmarks
+              </span>
             </button>
           </A>
           <A href="/plugins">
-            <button class="btn btn-ghost h-10 min-h-10" type="button">
-              <Package class="h-5 w-5" /> Plugins
+            <button
+              class="btn btn-ghost h-10 min-h-10 group overflow-hidden px-2 transition-all duration-700 ease-in-out"
+              type="button"
+            >
+              <Package class="h-5 w-5 flex-shrink-0" />
+              <span class="ml-0 max-w-0 group-hover:max-w-[60px] transition-all duration-700 ease-in-out whitespace-nowrap overflow-hidden">
+                Plugins
+              </span>
             </button>
           </A>
           <A href="/settings">
-            <button class="btn btn-ghost h-10 min-h-10" type="button">
-              <Settings class="h-5 w-5" /> Settings
+            <button
+              class="btn btn-ghost h-10 min-h-10 group overflow-hidden px-2 transition-all duration-700 ease-in-out"
+              type="button"
+            >
+              <Settings class="h-5 w-5 flex-shrink-0" />
+              <span class="ml-0 max-w-0 group-hover:max-w-[65px] transition-all duration-700 ease-in-out whitespace-nowrap overflow-hidden">
+                Settings
+              </span>
             </button>
           </A>
         </div>
