@@ -2,7 +2,7 @@
 // Handles saving, loading, and managing user-created custom plugins
 
 import type { CustomPlugin } from "../components/customPluginForm";
-import type { PluginConfig } from "./refluxPlugins";
+import type { PluginConfig } from "./pluginTypes";
 
 const CUSTOM_PLUGINS_STORAGE_KEY = "custom-reflux-plugins";
 

@@ -1,7 +1,6 @@
 import { createSignal, onMount, For, createMemo } from "solid-js";
 import {
   Package,
-  CircleCheck,
   CircleX,
   RotateCw,
   Save,
@@ -11,20 +10,10 @@ import {
   User,
   Globe,
 } from "lucide-solid";
-import type { PluginConfig } from "../lib/refluxPlugins";
-import {
-  loadPluginsConfig,
-  savePluginsToLocalStorage,
-  refreshPluginSystem,
-} from "../lib/refluxPlugins";
-import {
-  createCustomPlugin,
-  updateCustomPlugin,
-  deleteCustomPlugin,
-  loadCustomPlugins,
-} from "../lib/customPlugins";
 import { type CustomPlugin } from "../components/customPluginForm";
 import toast from "solid-toast";
+import { createSuccessToast, createErrorToast } from "../components/toast";
+import type { PluginConfig } from "../lib/pluginTypes";
 
 export default function Plugins() {
   const [plugins, setPlugins] = createSignal<PluginConfig[]>([]);
@@ -45,9 +34,9 @@ export default function Plugins() {
 
   let customPluginModal!: HTMLDialogElement;
 
-  // Track pending changes (plugin name -> new enabled state)
+  // Track pending changes (plugin name -> new enabled state or 'DELETE' for deletion)
   const [pendingChanges, setPendingChanges] = createSignal<
-    Record<string, boolean>
+    Record<string, boolean | 'DELETE'>
   >({});
 
   // Check if there are any unsaved changes
@@ -55,37 +44,41 @@ export default function Plugins() {
 
   // Separate default and custom plugins for display
   const defaultPlugins = createMemo(() =>
-    plugins().filter((p) => !p.functionFile.startsWith("__custom_")),
+    plugins()
+      .filter((p) => !p.functionFile.startsWith("__custom_"))
+      .filter((p) => pendingChanges()[p.name] !== 'DELETE'),
   );
 
   const customPlugins = createMemo(() =>
-    plugins().filter((p) => p.functionFile.startsWith("__custom_")),
+    plugins()
+      .filter((p) => p.functionFile.startsWith("__custom_"))
+      .filter((p) => pendingChanges()[p.name] !== 'DELETE'),
   );
 
   // Get the effective state of a plugin (pending change or current state)
   const getEffectiveState = (plugin: PluginConfig) => {
     const pendingState = pendingChanges()[plugin.name];
+    if (pendingState === 'DELETE') return false; // Deleted plugins appear disabled
     return pendingState !== undefined ? pendingState : plugin.enabled;
+  };
+
+  // Check if a plugin is marked for deletion
+  const isMarkedForDeletion = (plugin: PluginConfig) => {
+    return pendingChanges()[plugin.name] === 'DELETE';
   };
 
   const loadPlugins = async () => {
     try {
       setLoading(true);
+      const { loadPluginsConfig } = await import("../lib/refluxPlugins");
       const pluginConfigs = await loadPluginsConfig();
       setPlugins(pluginConfigs);
       console.log("[PluginsPage] Loaded plugins:", pluginConfigs.length);
+      console.log("[PluginsPage] Custom plugins:", pluginConfigs.filter(p => p.functionFile.startsWith("__custom_")).length);
+      console.log("[PluginsPage] Current pending changes:", Object.keys(pendingChanges()).length);
     } catch (error) {
       console.error("Failed to load plugins:", error);
-      toast.custom(() => {
-        return (
-          <div class="toast toast-center toast-top z-[9999]">
-            <div class="alert alert-error w-80">
-              <CircleX />
-              <span>Failed to load plugins</span>
-            </div>
-          </div>
-        );
-      });
+      toast.custom(createErrorToast("Failed to load plugins"));
     } finally {
       setLoading(false);
     }
@@ -95,31 +88,14 @@ export default function Plugins() {
     console.log("[PluginsPage] Refreshing plugins...");
     try {
       setLoading(true);
+      const { refreshPluginSystem } = await import("../lib/refluxPlugins");
       await refreshPluginSystem();
       await loadPlugins();
 
-      toast.custom(() => {
-        return (
-          <div class="toast toast-center toast-top z-[9999]">
-            <div class="alert alert-info w-80">
-              <CircleCheck />
-              <span>Plugin system refreshed</span>
-            </div>
-          </div>
-        );
-      });
+      toast.custom(createSuccessToast("Plugin system refreshed"));
     } catch (error) {
       console.error("[PluginsPage] Failed to refresh plugins:", error);
-      toast.custom(() => {
-        return (
-          <div class="toast toast-center toast-top z-[9999]">
-            <div class="alert alert-error w-80">
-              <CircleX />
-              <span>Failed to refresh plugins</span>
-            </div>
-          </div>
-        );
-      });
+      toast.custom(createErrorToast("Failed to refresh plugins"));
     } finally {
       setLoading(false);
     }
@@ -129,9 +105,12 @@ export default function Plugins() {
     const plugin = plugins().find((p) => p.name === pluginName);
     if (!plugin) return;
 
+    // Don't allow toggling plugins marked for deletion
+    if (pendingChanges()[pluginName] === 'DELETE') return;
+
     const currentState =
-      pendingChanges()[pluginName] !== undefined
-        ? pendingChanges()[pluginName]
+      pendingChanges()[pluginName] !== undefined && pendingChanges()[pluginName] !== 'DELETE'
+        ? pendingChanges()[pluginName] as boolean
         : plugin.enabled;
 
     const newState = !currentState;
@@ -148,28 +127,69 @@ export default function Plugins() {
     try {
       setSaving(true);
 
-      // Apply pending changes to the plugins array
-      const updatedPlugins = plugins().map((plugin) => {
+      // First, reload plugins to ensure we have the latest state including new custom plugins
+      const { loadPluginsConfig, removePlugin } = await import("../lib/refluxPlugins");
+      const { deleteCustomPlugin } = await import("../lib/customPlugins");
+      const freshPlugins = await loadPluginsConfig();
+
+      // Handle deletions first - actually delete from localStorage AND remove from plugin system
+      for (const [pluginName, pendingState] of Object.entries(pendingChanges())) {
+        if (pendingState === 'DELETE') {
+          const pluginToDelete = freshPlugins.find(p => p.name === pluginName);
+          if (pluginToDelete && pluginToDelete.functionFile.startsWith("__custom_")) {
+            const customPluginId = pluginToDelete.functionFile.replace("__custom_", "");
+            console.log("[PluginsPage] Deleting custom plugin from localStorage:", pluginName, "ID:", customPluginId);
+            deleteCustomPlugin(customPluginId);
+            
+            // Also remove from the plugin system
+            try {
+              console.log("[PluginsPage] Removing plugin from system:", pluginName);
+              await removePlugin(pluginName);
+            } catch (removeError) {
+              console.warn("[PluginsPage] Failed to remove plugin from system (may not be loaded):", pluginName, removeError);
+            }
+          }
+        }
+      }
+
+      // Handle custom plugin updates by removing and re-adding them to the system
+      // This ensures code changes are applied
+      for (const [pluginName, pendingState] of Object.entries(pendingChanges())) {
+        if (pendingState !== 'DELETE') {
+          const plugin = freshPlugins.find(p => p.name === pluginName);
+          if (plugin && plugin.functionFile.startsWith("__custom_")) {
+            try {
+              console.log("[PluginsPage] Refreshing custom plugin in system:", pluginName);
+              // Remove the old version first
+              await removePlugin(pluginName);
+            } catch (removeError) {
+              console.warn("[PluginsPage] Plugin may not be loaded yet:", pluginName, removeError);
+            }
+          }
+        }
+      }
+
+      // Reload plugins after deletions to get the updated list
+      const updatedFreshPlugins = await loadPluginsConfig();
+
+      // Apply pending enabled/disabled changes to the remaining plugins
+      const updatedPlugins = updatedFreshPlugins.map((plugin) => {
         const pendingState = pendingChanges()[plugin.name];
-        return pendingState !== undefined
+        if (pendingState === 'DELETE') {
+          // This plugin should have been deleted, skip it
+          return null;
+        }
+        return pendingState !== undefined && typeof pendingState === 'boolean'
           ? { ...plugin, enabled: pendingState }
           : plugin;
-      });
+      }).filter(Boolean) as PluginConfig[]; // Remove null entries
 
       // Save to localStorage
+      const { savePluginsToLocalStorage } = await import("../lib/refluxPlugins");
       savePluginsToLocalStorage(updatedPlugins);
 
       // Show success message
-      toast.custom(() => {
-        return (
-          <div class="toast toast-center toast-top z-[9999]">
-            <div class="alert alert-success w-80">
-              <CircleCheck />
-              <span>Plugin settings saved! Reloading page...</span>
-            </div>
-          </div>
-        );
-      });
+      toast.custom(createSuccessToast("Plugin settings saved! Reloading page..."));
 
       // Wait a moment for the toast to show, then reload
       setTimeout(() => {
@@ -177,32 +197,16 @@ export default function Plugins() {
       }, 1500);
     } catch (error) {
       console.error("Failed to save plugin changes:", error);
-      toast.custom(() => {
-        return (
-          <div class="toast toast-center toast-top z-[9999]">
-            <div class="alert alert-error w-80">
-              <CircleX />
-              <span>Failed to save plugin settings</span>
-            </div>
-          </div>
-        );
-      });
+      toast.custom(createErrorToast("Failed to save plugin settings"));
       setSaving(false);
     }
   };
 
-  const discardChanges = () => {
+  const discardChanges = async () => {
     setPendingChanges({});
-    toast.custom(() => {
-      return (
-        <div class="toast toast-center toast-top z-[9999]">
-          <div class="alert alert-info w-80">
-            <CircleX />
-            <span>Changes discarded</span>
-          </div>
-        </div>
-      );
-    });
+    // Reload plugins to show the current state without pending changes
+    await loadPlugins();
+    toast.custom(createSuccessToast("Changes discarded"));
   };
 
   // Custom plugin management functions
@@ -216,8 +220,8 @@ export default function Plugins() {
     customPluginModal.showModal();
   };
 
-  const openEditPluginModal = (plugin: PluginConfig) => {
-    const customPlugin = getCustomPluginForEdit(plugin);
+  const openEditPluginModal = async (plugin: PluginConfig) => {
+    const customPlugin = await getCustomPluginForEdit(plugin);
     if (!customPlugin) return;
 
     setEditingCustomPlugin(customPlugin);
@@ -229,7 +233,7 @@ export default function Plugins() {
     customPluginModal.showModal();
   };
 
-  const saveCustomPlugin = () => {
+    const saveCustomPlugin = async () => {
     const name = customPluginName().trim();
     const displayName = customPluginDisplayName().trim();
     const description = customPluginDescription().trim();
@@ -237,14 +241,7 @@ export default function Plugins() {
     const jsCode = customPluginCode().trim();
 
     if (!name || !displayName || !description || !domainsText || !jsCode) {
-      toast.custom(() => (
-        <div class="toast toast-center toast-top z-[9999]">
-          <div class="alert alert-error w-80">
-            <CircleX />
-            <span>Please fill in all fields</span>
-          </div>
-        </div>
-      ));
+      toast.custom(createErrorToast("Please fill in all fields"));
       return;
     }
 
@@ -265,10 +262,11 @@ export default function Plugins() {
 
       if (editingCustomPlugin()) {
         // Update the custom plugin
+        const { updateCustomPlugin } = await import("../lib/customPlugins");
         updateCustomPlugin(editingCustomPlugin()!.id, pluginData);
-
+        
         // Add to pending changes to trigger the "Save & Reload" workflow
-        const currentPlugin = plugins().find((p) => p.name === name);
+        const currentPlugin = plugins().find(p => p.name === name);
         if (currentPlugin) {
           setPendingChanges((prev) => ({
             ...prev,
@@ -276,87 +274,71 @@ export default function Plugins() {
           }));
         }
 
-        toast.custom(() => (
-          <div class="toast toast-center toast-top z-[9999]">
-            <div class="alert alert-success w-80">
-              <CircleCheck />
-              <span>
-                Plugin updated! Click "Save & Reload" to apply changes.
-              </span>
-            </div>
-          </div>
-        ));
+        toast.custom(createSuccessToast("Plugin updated! Click \"Save & Reload\" to apply changes."));
 
         customPluginModal.close();
         loadPlugins(); // Refresh to show updated plugin data
       } else {
+        // Create new custom plugin
+        const { createCustomPlugin } = await import("../lib/customPlugins");
         createCustomPlugin(pluginData);
-        toast.custom(() => (
-          <div class="toast toast-center toast-top z-[9999]">
-            <div class="alert alert-success w-80">
-              <CircleCheck />
-              <span>Custom plugin created!</span>
-            </div>
-          </div>
-        ));
+        
+        // Add new plugin to pending changes so it shows "Save & Reload" is needed
+        setPendingChanges((prev) => ({
+          ...prev,
+          [name]: false, // New plugins start disabled and need Save & Reload to apply
+        }));
+
+        toast.custom(createSuccessToast("Custom plugin created! Click \"Save & Reload\" to apply."));
 
         customPluginModal.close();
-        loadPlugins(); // Refresh the plugins list for new plugins
+        loadPlugins(); // Refresh the plugins list to show new plugin
       }
     } catch (error: any) {
-      toast.custom(() => (
-        <div class="toast toast-center toast-top z-[9999]">
-          <div class="alert alert-error w-80">
-            <CircleX />
-            <span>{error.message || "Failed to save plugin"}</span>
-          </div>
-        </div>
-      ));
+      toast.custom(createErrorToast(error.message || "Failed to save plugin"));
     }
   };
 
-  const handleDeleteCustomPlugin = (plugin: PluginConfig) => {
+  const handleDeleteCustomPlugin = async (plugin: PluginConfig) => {
     if (!plugin.functionFile.startsWith("__custom_")) return;
 
-    const customPluginId = plugin.functionFile.replace("__custom_", "");
+    // If already marked for deletion, restore it
+    if (isMarkedForDeletion(plugin)) {
+      setPendingChanges((prev) => {
+        const updated = { ...prev };
+        delete updated[plugin.name];
+        return updated;
+      });
+      console.log("[PluginsPage] Plugin restored:", plugin.name);
+      toast.custom(createSuccessToast("Plugin restored!"));
+      return;
+    }
+
     const confirmed = confirm(
       `Are you sure you want to delete the plugin "${plugin.displayName}"? This action cannot be undone.`,
     );
 
     if (confirmed) {
-      try {
-        deleteCustomPlugin(customPluginId);
-        loadPlugins(); // Refresh the plugins list
+      // Mark plugin for deletion in pending changes
+      setPendingChanges((prev) => ({
+        ...prev,
+        [plugin.name]: 'DELETE',
+      }));
 
-        toast.custom(() => (
-          <div class="toast toast-center toast-top z-[9999]">
-            <div class="alert alert-success w-80">
-              <CircleCheck />
-              <span>Plugin deleted successfully</span>
-            </div>
-          </div>
-        ));
-      } catch (error: any) {
-        toast.custom(() => (
-          <div class="toast toast-center toast-top z-[9999]">
-            <div class="alert alert-error w-80">
-              <CircleX />
-              <span>Failed to delete plugin</span>
-            </div>
-          </div>
-        ));
-      }
+      console.log("[PluginsPage] Plugin marked for deletion:", plugin.name, "Click 'Save & Reload' to apply");
+      toast.custom(createSuccessToast("Plugin marked for deletion! Click \"Save & Reload\" to apply changes."));
     }
   };
 
-  const getCustomPluginForEdit = (
+  const getCustomPluginForEdit = async (
     plugin: PluginConfig,
-  ): CustomPlugin | undefined => {
+  ): Promise<CustomPlugin | undefined> => {
     if (!plugin.functionFile.startsWith("__custom_")) return undefined;
 
     const customPluginId = plugin.functionFile.replace("__custom_", "");
+    const { loadCustomPlugins } = await import("../lib/customPlugins");
     const customPlugins = loadCustomPlugins();
-    return customPlugins.find((cp) => cp.id === customPluginId);
+    return customPlugins.find((cp: CustomPlugin) => cp.id === customPluginId);
   };
 
   onMount(() => {
@@ -525,13 +507,21 @@ export default function Plugins() {
                           <div class="flex items-center justify-between">
                             <div class="flex-1 min-w-0">
                               <div class="flex items-center gap-3 mb-2">
-                                <h3 class="text-xl font-semibold">
+                                <h3 class={`text-xl font-semibold ${isMarkedForDeletion(plugin) ? 'line-through opacity-50' : ''}`}>
                                   {plugin.displayName}
                                 </h3>
                                 <div
-                                  class={`badge ${getEffectiveState(plugin) ? "badge-success" : "badge-ghost"}`}
+                                  class={`badge ${
+                                    isMarkedForDeletion(plugin) 
+                                      ? "badge-error" 
+                                      : getEffectiveState(plugin) 
+                                        ? "badge-success" 
+                                        : "badge-ghost"
+                                  }`}
                                 >
-                                  {getEffectiveState(plugin)
+                                  {isMarkedForDeletion(plugin)
+                                    ? "Delete"
+                                    : getEffectiveState(plugin)
                                     ? "Enabled"
                                     : "Disabled"}
                                   {pendingChanges()[plugin.name] !==
@@ -542,7 +532,7 @@ export default function Plugins() {
                                   )}
                                 </div>
                               </div>
-                              <p class="text-base-content/70 mb-3">
+                              <p class={`text-base-content/70 mb-3 ${isMarkedForDeletion(plugin) ? 'opacity-50' : ''}`}>
                                 {plugin.description}
                               </p>
                               <div class="flex flex-wrap gap-2 text-sm">
@@ -556,16 +546,16 @@ export default function Plugins() {
                               <button
                                 class="btn btn-ghost btn-sm opacity-60 hover:opacity-100"
                                 onClick={() => openEditPluginModal(plugin)}
-                                disabled={loading() || saving()}
-                                title="Edit plugin"
+                                disabled={loading() || saving() || isMarkedForDeletion(plugin)}
+                                title={isMarkedForDeletion(plugin) ? "Cannot edit plugin marked for deletion" : "Edit plugin"}
                               >
                                 <Edit class="h-4 w-4 stroke-2" />
                               </button>
                               <button
-                                class="btn btn-ghost btn-sm opacity-60 hover:opacity-100 text-error"
+                                class={`btn btn-ghost btn-sm opacity-60 hover:opacity-100 ${isMarkedForDeletion(plugin) ? 'text-success' : 'text-error'}`}
                                 onClick={() => handleDeleteCustomPlugin(plugin)}
                                 disabled={loading() || saving()}
-                                title="Delete plugin"
+                                title={isMarkedForDeletion(plugin) ? "Restore plugin" : "Delete plugin"}
                               >
                                 <Trash2 class="h-4 w-4 stroke-2" />
                               </button>
@@ -573,7 +563,7 @@ export default function Plugins() {
                                 type="checkbox"
                                 class="toggle toggle-primary"
                                 checked={getEffectiveState(plugin)}
-                                disabled={loading() || saving()}
+                                disabled={loading() || saving() || isMarkedForDeletion(plugin)}
                                 onChange={() => handleToggle(plugin.name)}
                               />
                             </div>

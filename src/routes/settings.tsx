@@ -16,13 +16,31 @@ import type {
   CloakData,
 } from "../lib/types";
 
-import { CircleCheck, CircleHelp, Trash } from "lucide-solid";
+import { CircleHelp, Trash } from "lucide-solid";
 import { exportData, importData, resetData } from "../lib/browsingdata";
 import { handleTransport } from "../lib/transport";
 import { DEFAULT_WISP_URL } from "../lib/proxy";
+import Dropdown, { DropdownOption } from "../components/dropdown";
+import { createSuccessToast, createErrorToast } from "../components/toast";
 
 export const [exportSuccessful, setExportStatus] = createSignal(false);
 export const [importSuccessful, setImportStatus] = createSignal(false);
+
+// Dropdown options
+const themeOptions: DropdownOption[] = themes.map(theme => ({
+  value: theme,
+  label: theme === "default" ? "default" : theme.charAt(0).toUpperCase() + theme.slice(1)
+}));
+
+const proxyEngineOptions: DropdownOption[] = [
+  { value: "uv", label: "UV", icon: "/img/ultraviolet.png" },
+  { value: "scramjet", label: "Scramjet", icon: "/img/scramjet.png" }
+];
+
+const transportOptions: DropdownOption[] = [
+  { value: "epoxy", label: "Epoxy" },
+  { value: "libcurl", label: "Libcurl" }
+];
 
 export default function Settings() {
   const [tabName, setTabName] = createSignal("");
@@ -38,7 +56,6 @@ export default function Settings() {
   >("none");
 
   const [theme, setTheme] = createSignal("default");
-  const [themeOpen, setThemeOpen] = createSignal(false);
 
   const [debug, setDebug] = createSignal("disabled");
 
@@ -76,7 +93,6 @@ export default function Settings() {
   const [cloakPresetIcon, setCloakPresetIcon] = createSignal("/img/google.png");
 
   const [proxyEngine, setProxyEngine] = createSignal<"uv" | "scramjet">("uv");
-  const [proxyOpen, setProxyOpen] = createSignal(false);
 
   const [moreInfoTitle, setMoreInfoTitle] = createSignal("");
   const [moreInfoContent, setMoreInfoContent] = createSignal("");
@@ -288,16 +304,7 @@ export default function Settings() {
     handleTransport();
     syncAdblockToSW(adblock() === "enabled");
 
-    toast.custom(() => {
-      return (
-        <div class="toast toast-center toast-top z-[9999]">
-          <div class="alert alert-success w-80">
-            <CircleCheck />
-            <span>Settings saved.</span>
-          </div>
-        </div>
-      );
-    });
+    toast.custom(createSuccessToast("Settings saved."));
   }
 
   createEffect(() => {
@@ -446,48 +453,12 @@ export default function Settings() {
         <div class="flex group relative w-80 flex-col items-center gap-4 rounded-box bg-base-200 p-4 border border-base-300">
           <h1 class="text-2xl font-semibold">Theme</h1>
           <p class="text-center text-xs">Change the styling of Mocha's UI</p>
-          <div class="relative w-full max-w-xs">
-            <button
-              type="button"
-              class="select select-bordered w-full flex items-center justify-between"
-              onClick={() => setThemeOpen(!themeOpen())}
-              onBlur={() => setThemeOpen(false)}
-            >
-              <span class="capitalize">
-                {theme() === "default"
-                  ? "default"
-                  : theme().charAt(0).toUpperCase() + theme().slice(1)}
-              </span>
-            </button>
-            {themeOpen() && (
-              <ul
-                class="absolute left-0 top-full mt-1 z-50 w-full menu bg-base-200 border border-base-300 rounded-box shadow-lg"
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                {themes.map((item) => {
-                  return (
-                    <li>
-                      <button
-                        type="button"
-                        class="flex items-center gap-2 hover:bg-base-300 w-full text-left px-3 py-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setTheme(item);
-                          setThemeOpen(false);
-                        }}
-                      >
-                        <span class="capitalize">
-                          {item === "default"
-                            ? "default"
-                            : item.charAt(0).toUpperCase() + item.slice(1)}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+          <Dropdown
+            value={theme()}
+            options={themeOptions}
+            onChange={setTheme}
+            placeholder="Select theme"
+          />
 
           <span
             class="absolute top-2.5 right-2.5 text-base-content/50 opacity-0 group-hover:opacity-100 duration-150 cursor-pointer"
@@ -531,62 +502,12 @@ export default function Settings() {
         <div class="flex group relative w-80 flex-col items-center gap-4 rounded-box bg-base-200 p-4 border border-base-300">
           <h1 class="text-2xl font-semibold">Proxy Engine</h1>
           <p class="text-center text-xs">Switch the current engine</p>
-          <div class="relative w-full max-w-xs">
-            <button
-              type="button"
-              class="select select-bordered w-full flex items-center gap-2 justify-between"
-              onClick={() => setProxyOpen(!proxyOpen())}
-              onBlur={() => setProxyOpen(false)}
-            >
-              <span class="flex items-center gap-2">
-                <img
-                  src={
-                    proxyEngine() === "uv"
-                      ? "/img/ultraviolet.png"
-                      : "/img/scramjet.png"
-                  }
-                  alt=""
-                  class="w-5 h-5"
-                />
-                <span>{proxyEngine() === "uv" ? "UV" : "Scramjet"}</span>
-              </span>
-            </button>
-            {proxyOpen() && (
-              <ul
-                class="absolute left-0 top-full mt-1 z-50 w-full menu bg-base-200 border border-base-300 rounded-box shadow-lg"
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                <li>
-                  <button
-                    type="button"
-                    class="flex items-center gap-2 hover:bg-base-300"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setProxyEngine("uv");
-                      setProxyOpen(false);
-                    }}
-                  >
-                    <img src="/img/ultraviolet.png" alt="" class="w-5 h-5" />
-                    <span>UV</span>
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    class="flex items-center gap-2 hover:bg-base-300"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setProxyEngine("scramjet");
-                      setProxyOpen(false);
-                    }}
-                  >
-                    <img src="/img/scramjet.png" alt="" class="w-5 h-5" />
-                    <span>Scramjet</span>
-                  </button>
-                </li>
-              </ul>
-            )}
-          </div>
+          <Dropdown
+            value={proxyEngine()}
+            options={proxyEngineOptions}
+            onChange={(value) => setProxyEngine(value as "uv" | "scramjet")}
+            placeholder="Select engine"
+          />
 
           <span
             class="absolute top-2.5 right-2.5 text-base-content/50 opacity-0 group-hover:opacity-100 duration-150 cursor-pointer"
@@ -746,14 +667,12 @@ export default function Settings() {
                 <p class="text-center text-xs">
                   Change how Mocha's proxy handles requests
                 </p>
-                <select
-                  class="select select-bordered w-full max-w-xs"
+                <Dropdown
                   value={transport()}
-                  onChange={(e) => setTransport(e.target.value)}
-                >
-                  <option value="epoxy">Epoxy</option>
-                  <option value="libcurl">Libcurl</option>
-                </select>
+                  options={transportOptions}
+                  onChange={setTransport}
+                  placeholder="Select transport"
+                />
                 <button
                   class="btn btn-outline w-full"
                   type="button"
@@ -885,16 +804,7 @@ export default function Settings() {
                     class="flex justify-between items-center bg-base-200 hover:bg-base-300 duration-200 min-h-12 w-full rounded-box px-3 py-2 group border border-base-300 cursor-pointer gap-2"
                     onClick={() => {
                       setWispModalUrl(url);
-                      toast.custom(() => {
-                        return (
-                          <div class="toast toast-center toast-top z-[9999]">
-                            <div class="alert alert-success w-80">
-                              <CircleCheck />
-                              <span>Wisp preset selected.</span>
-                            </div>
-                          </div>
-                        );
-                      });
+                      toast.custom(createSuccessToast("Wisp preset selected."));
                     }}
                   >
                     <div class="flex-1 text-left whitespace-normal break-all font-geist-mono">
@@ -909,16 +819,7 @@ export default function Settings() {
                         );
                         setWispPresets(next);
                         store.local.set("wispPresets", next);
-                        toast.custom(() => {
-                          return (
-                            <div class="toast toast-center toast-top z-[9999]">
-                              <div class="alert alert-success w-80">
-                                <CircleCheck />
-                                <span>Wisp preset deleted.</span>
-                              </div>
-                            </div>
-                          );
-                        });
+                        toast.custom(createSuccessToast("Wisp preset deleted."));
                       }}
                       class="btn btn-square btn-ghost btn-sm shrink-0 sm:opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200"
                     >
@@ -954,26 +855,9 @@ export default function Settings() {
                         setWispPresets(next);
                         store.local.set("wispPresets", next);
                       }
-                      toast.custom(() => {
-                        return (
-                          <div class="toast toast-center toast-top z-[9999]">
-                            <div class="alert alert-success w-80">
-                              <CircleCheck />
-                              <span>Wisp preset added.</span>
-                            </div>
-                          </div>
-                        );
-                      });
+                      toast.custom(createSuccessToast("Wisp preset added."));
                     } else {
-                      toast.custom(() => {
-                        return (
-                          <div class="toast toast-center toast-top z-[9999]">
-                            <div class="alert alert-error w-80">
-                              <span>Enter a valid ws:// or wss:// URL</span>
-                            </div>
-                          </div>
-                        );
-                      });
+                      toast.custom(createErrorToast("Enter a valid ws:// or wss:// URL"));
                     }
                   }}
                 >
@@ -997,16 +881,7 @@ export default function Settings() {
                 const url = wispModalUrl().trim();
                 if (url) {
                   setWispUrl(url);
-                  toast.custom(() => {
-                    return (
-                      <div class="toast toast-center toast-top z-[9999]">
-                        <div class="alert alert-success w-80">
-                          <CircleCheck />
-                          <span>Wisp applied.</span>
-                        </div>
-                      </div>
-                    );
-                  });
+                  toast.custom(createSuccessToast("Wisp applied."));
                 }
                 wispModal.close();
               }}
@@ -1049,16 +924,7 @@ export default function Settings() {
                         setSearchEngine("custom");
                         setSearchCustomUrl(p.url);
                       }
-                      toast.custom(() => {
-                        return (
-                          <div class="toast toast-center toast-top z-[9999]">
-                            <div class="alert alert-success w-80">
-                              <CircleCheck />
-                              <span>Search engine preset selected.</span>
-                            </div>
-                          </div>
-                        );
-                      });
+                      toast.custom(createSuccessToast("Search engine preset selected."));
                     }}
                   >
                     <div class="flex items-center gap-2 flex-1 min-w-0">
@@ -1088,16 +954,7 @@ export default function Settings() {
                         );
                         setSearchPresets(next);
                         store.local.set("searchPresets", next);
-                        toast.custom(() => {
-                          return (
-                            <div class="toast toast-center toast-top z-[9999]">
-                              <div class="alert alert-success w-80">
-                                <CircleCheck />
-                                <span>Search preset deleted.</span>
-                              </div>
-                            </div>
-                          );
-                        });
+                        toast.custom(createSuccessToast("Search preset deleted."));
                       }}
                       class="btn btn-square btn-ghost btn-sm shrink-0 sm:opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200"
                     >
@@ -1139,34 +996,14 @@ export default function Settings() {
                       const name = searchPresetName().trim() || "Custom";
                       const url = searchCustomUrl().trim();
                       if (!url.includes("%s")) {
-                        toast.custom(() => {
-                          return (
-                            <div class="toast toast-center toast-top z-[9999]">
-                              <div class="alert alert-error w-80">
-                                <span>
-                                  Custom engine must include %s where the query
-                                  goes.
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        });
+                        toast.custom(createErrorToast("Custom engine must include %s where the query goes."));
                         return;
                       }
                       const next = [...searchPresets(), { name, url }];
                       setSearchPresets(next);
                       store.local.set("searchPresets", next);
                       setSearchEngine("custom");
-                      toast.custom(() => {
-                        return (
-                          <div class="toast toast-center toast-top z-[9999]">
-                            <div class="alert alert-success w-80">
-                              <CircleCheck />
-                              <span>Search preset added.</span>
-                            </div>
-                          </div>
-                        );
-                      });
+                      toast.custom(createSuccessToast("Search preset added."));
                     }}
                   >
                     +
@@ -1191,27 +1028,9 @@ export default function Settings() {
                 if (url && url.includes("%s")) {
                   setSearchEngine("custom");
                   setSearchCustomUrl(url);
-                  toast.custom(() => {
-                    return (
-                      <div class="toast toast-center toast-top z-[9999]">
-                        <div class="alert alert-success w-80">
-                          <CircleCheck />
-                          <span>Custom search engine applied.</span>
-                        </div>
-                      </div>
-                    );
-                  });
+                  toast.custom(createSuccessToast("Custom search engine applied."));
                 } else {
-                  toast.custom(() => {
-                    return (
-                      <div class="toast toast-center toast-top z-[9999]">
-                        <div class="alert alert-success w-80">
-                          <CircleCheck />
-                          <span>Search engine selection applied.</span>
-                        </div>
-                      </div>
-                    );
-                  });
+                  toast.custom(createSuccessToast("Search engine selection applied."));
                 }
                 searchModal.close();
               }}
@@ -1283,16 +1102,7 @@ export default function Settings() {
                     onClick={() => {
                       setTabName(p.title);
                       setTabIcon(p.icon);
-                      toast.custom(() => {
-                        return (
-                          <div class="toast toast-center toast-top z-[9999]">
-                            <div class="alert alert-success w-80">
-                              <CircleCheck />
-                              <span>Cloak preset selected.</span>
-                            </div>
-                          </div>
-                        );
-                      });
+                      toast.custom(createSuccessToast("Cloak preset selected."));
                     }}
                   >
                     <div class="flex items-center gap-2 flex-1 min-w-0">
@@ -1308,16 +1118,7 @@ export default function Settings() {
                         );
                         setCloakPresets(next);
                         store.local.set("cloakPresets", next);
-                        toast.custom(() => {
-                          return (
-                            <div class="toast toast-center toast-top z-[9999]">
-                              <div class="alert alert-success w-80">
-                                <CircleCheck />
-                                <span>Cloak preset deleted.</span>
-                              </div>
-                            </div>
-                          );
-                        });
+                        toast.custom(createSuccessToast("Cloak preset deleted."));
                       }}
                       class="btn btn-square btn-ghost btn-sm shrink-0 sm:opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200"
                     >
@@ -1358,30 +1159,13 @@ export default function Settings() {
                     const title = cloakPresetTitle().trim();
                     const icon = cloakPresetIcon().trim();
                     if (!title || !icon) {
-                      toast.custom(() => {
-                        return (
-                          <div class="toast toast-center toast-top z-[9999]">
-                            <div class="alert alert-error w-80">
-                              <span>Enter both title and icon URL.</span>
-                            </div>
-                          </div>
-                        );
-                      });
+                      toast.custom(createErrorToast("Enter both title and icon URL."));
                       return;
                     }
                     const next = [...cloakPresets(), { title, icon }];
                     setCloakPresets(next);
                     store.local.set("cloakPresets", next);
-                    toast.custom(() => {
-                      return (
-                        <div class="toast toast-center toast-top z-[9999]">
-                          <div class="alert alert-success w-80">
-                            <CircleCheck />
-                            <span>Cloak preset added.</span>
-                          </div>
-                        </div>
-                      );
-                    });
+                    toast.custom(createSuccessToast("Cloak preset added."));
                   }}
                 >
                   +
@@ -1406,16 +1190,7 @@ export default function Settings() {
                 if (title || icon) {
                   if (title) setTabName(title);
                   if (icon) setTabIcon(icon);
-                  toast.custom(() => {
-                    return (
-                      <div class="toast toast-center toast-top z-[9999]">
-                        <div class="alert alert-success w-80">
-                          <CircleCheck />
-                          <span>Cloak applied.</span>
-                        </div>
-                      </div>
-                    );
-                  });
+                  toast.custom(createSuccessToast("Cloak applied."));
                 }
                 cloakModal.close();
               }}

@@ -1,8 +1,8 @@
 import { openDB } from "idb";
-import { CircleCheck } from "lucide-solid";
 import toast from "solid-toast";
 import type { BrowsingData } from "./types";
 import { setImportStatus, setExportStatus } from "../routes/settings";
+import { createSuccessToast } from "../components/toast";
 
 export async function exportData() {
   setExportStatus(false);
@@ -44,16 +44,7 @@ export async function exportData() {
   URL.revokeObjectURL(link.href);
   link.remove();
 
-  toast.custom(() => {
-    return (
-      <div class="toast toast-center toast-top">
-        <div class="alert alert-success w-80">
-          <CircleCheck />
-          <span>Browsing data exported.</span>
-        </div>
-      </div>
-    );
-  });
+  toast.custom(createSuccessToast("Browsing data exported."));
 
   setExportStatus(true);
 }
@@ -99,16 +90,7 @@ export async function importData(fileImport: HTMLInputElement) {
         }
       }
 
-      toast.custom(() => {
-        return (
-          <div class="toast toast-center toast-top">
-            <div class="alert alert-success">
-              <CircleCheck />
-              <span>Browsing data imported from {file.item(0)?.name}</span>
-            </div>
-          </div>
-        );
-      });
+      toast.custom(createSuccessToast(`Browsing data imported from ${file.item(0)?.name}`));
 
       setImportStatus(true);
     };
@@ -137,14 +119,5 @@ export async function resetData(showNotification = true) {
   await db.clear("cookies");
 
   if (showNotification)
-    toast.custom(() => {
-      return (
-        <div class="toast toast-center toast-top">
-          <div class="alert alert-success">
-            <CircleCheck />
-            <span>Browsing data deleted.</span>
-          </div>
-        </div>
-      );
-    });
+    toast.custom(createSuccessToast("Browsing data deleted."));
 }

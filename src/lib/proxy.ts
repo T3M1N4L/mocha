@@ -3,7 +3,6 @@ import type { TransportData, WispData } from "./types";
 import { transports } from "./transport";
 import { BareMuxConnection } from "@mercuryworkshop/bare-mux";
 import { setProxyStatus } from "../routes/route";
-import { initDefaultPlugins, getRefluxAPI } from "./refluxPlugins";
 export const DEFAULT_WISP_URL = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/wisp/`;
 
 async function ensureScramjetLoaded() {
@@ -73,6 +72,7 @@ export async function setupProxy() {
     // Ensure default Reflux plugins are present before transport initialization,
     // so Reflux middleware can load them on startup.
     try {
+      const { initDefaultPlugins } = await import("./refluxPlugins");
       await initDefaultPlugins();
     } catch (e) {
       console.error("Failed to init default Reflux plugins:", e);
@@ -85,6 +85,7 @@ export async function setupProxy() {
 
     // Expose handy globals for debugging and programmatic control
     try {
+      const { getRefluxAPI } = await import("./refluxPlugins");
       (window as any).BMConnection = connection;
       (window as any).RefluxControlAPI = getRefluxAPI();
       (window as any).RefluxAPIInstance = (window as any).RefluxControlAPI;

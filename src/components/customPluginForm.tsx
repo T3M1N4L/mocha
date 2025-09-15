@@ -1,6 +1,7 @@
 import { createSignal, createMemo } from "solid-js";
 import { Plus, Save, X, Code, Globe, Type } from "lucide-solid";
 import toast from "solid-toast";
+import { createSuccessToast, createErrorToast } from "./toast";
 
 export type CustomPlugin = {
   id: string;
@@ -87,31 +88,17 @@ export default function CustomPluginForm(props: CustomPluginFormProps) {
 
       props.onSave(pluginData);
 
-      toast.custom(() => (
-        <div class="toast toast-center toast-top z-[9999]">
-          <div class="alert alert-success w-80">
-            <Save />
-            <span>
-              {props.editingPlugin
-                ? "Plugin updated!"
-                : "Custom plugin created!"}
-            </span>
-          </div>
-        </div>
+      toast.custom(createSuccessToast(
+        props.editingPlugin
+          ? "Plugin updated!"
+          : "Custom plugin created!"
       ));
 
       props.onClose();
       resetForm();
     } catch (error) {
       console.error("Failed to save custom plugin:", error);
-      toast.custom(() => (
-        <div class="toast toast-center toast-top z-[9999]">
-          <div class="alert alert-error w-80">
-            <X />
-            <span>Failed to save plugin</span>
-          </div>
-        </div>
-      ));
+      toast.custom(createErrorToast("Failed to save plugin"));
     } finally {
       setSaving(false);
     }

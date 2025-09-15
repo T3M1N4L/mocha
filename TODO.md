@@ -2,11 +2,9 @@
 - [ ] **Ambient-like shortcut cards**
 - [ ] Better UI
 - [ ] socks5/tor routing like holy ubo for wisp
-- [x] plugins
 - [ ] vertical tabs
 - [ ] custom themes
 - [ ] astro rewrite
-- [ ] custom userscripts
 - [ ] nextdns
 - [ ] patches for hl/gl en for google (without breaking it completley lmao (not infinitley reloading and allat))
 - [ ] **scramjet export browsing data**
@@ -22,3 +20,4 @@
 - [ ] **make notification popups be on the bottom left**, and make it extend based on the text
 - [ ] fully structure this thing after astro rewrite
 - [ ] better readme lmfao (try to explain everything in depth)
+- [ ] custom styles/userscript option in plugins

@@ -4,7 +4,6 @@ import {
   Bookmark,
   ChevronLeft,
   ChevronRight,
-  CircleAlert,
   FileCode,
   Home,
   PanelBottomClose,
@@ -28,6 +27,7 @@ import type {
 } from "../lib/types";
 import { encodeXor, formatSearch, getFavicon } from "../lib/utils";
 import { bookmarks, handleBookmark } from "../lib/bookmarks";
+import { createErrorToast } from "../components/toast";
 
 export const [proxyReady, setProxyStatus] = createSignal(false);
 
@@ -116,41 +116,30 @@ export default function Route() {
     ) {
       toast.custom((x) => {
         return (
-          <div class="toast toast-center toast-top">
-            <div class="alert alert-warning">
-              <TriangleAlert />
-              <span>
-                This website might run better with the{" "}
-                <span class="font-semibold">{patch.suggestedTransport}</span>{" "}
-                transport enabled. <br />{" "}
-                <span
-                  class="cursor-pointer underline underline-offset-4"
-                  onMouseDown={() => {
-                    handleTransport(patch.suggestedTransport);
-                    toast.dismiss(x.id);
-                    contentWindow.location.reload();
-                  }}
-                >
-                  Set Transport
-                </span>
+          <div class="alert alert-warning min-w-fit max-w-sm w-auto">
+            <TriangleAlert />
+            <span>
+              This website might run better with the{" "}
+              <span class="font-semibold">{patch.suggestedTransport}</span>{" "}
+              transport enabled. <br />{" "}
+              <span
+                class="cursor-pointer underline underline-offset-4"
+                onMouseDown={() => {
+                  handleTransport(patch.suggestedTransport);
+                  toast.dismiss(x.id);
+                  contentWindow.location.reload();
+                }}
+              >
+                Set Transport
               </span>
-            </div>
+            </span>
           </div>
         );
       });
     }
 
     if (patch.works === false) {
-      toast.custom(() => {
-        return (
-          <div class="toast toast-center toast-top">
-            <div class="alert alert-error">
-              <CircleAlert />
-              <span>This website is known not to work correctly.</span>
-            </div>
-          </div>
-        );
-      });
+      toast.custom(createErrorToast("This website is known not to work correctly."));
     }
 
     if (patch.execute) {

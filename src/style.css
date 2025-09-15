@@ -46,3 +46,73 @@
     font-weight: normal;
   }
 }
+
+/* Toast animations for smooth enter/exit */
+@layer components {
+  /* Enhanced solid-toast animations */
+  .solid-toast-container {
+    pointer-events: none;
+  }
+  
+  .solid-toast-container > * {
+    pointer-events: auto;
+  }
+
+  /* Toast enter animations */
+  [data-sonner-toast] {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: toast-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Toast exit animations */
+  [data-sonner-toast][data-mounted="false"],
+  [data-sonner-toast][data-removed="true"] {
+    transform: translateX(100%) scale(0.95);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 1, 1);
+    animation: toast-exit 0.35s cubic-bezier(0.4, 0, 1, 1) forwards;
+  }
+
+  /* Custom keyframes for smooth animations */
+  @keyframes toast-enter {
+    from {
+      transform: translateX(100%) scale(0.95);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0) scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes toast-exit {
+    from {
+      transform: translateX(0) scale(1);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(100%) scale(0.95);
+      opacity: 0;
+    }
+  }
+
+  /* Alternative selectors for different toast libraries */
+  .toast-enter {
+    animation: toast-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .toast-exit {
+    animation: toast-exit 0.35s cubic-bezier(0.4, 0, 1, 1) forwards;
+  }
+
+  /* Ensure toast stacking works smoothly */
+  [data-sonner-toaster] {
+    --gap: 8px;
+  }
+
+  [data-sonner-toast]:not([data-expanded]):not([data-front]) {
+    transform: translateY(calc(var(--lift) * 100%)) scale(var(--scale));
+  }
+}

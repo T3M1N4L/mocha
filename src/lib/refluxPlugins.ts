@@ -3,21 +3,9 @@
 
 import type { RefluxAPI as RefluxAPIType } from "@nightnetwork/reflux";
 import { RefluxAPI } from "@nightnetwork/reflux";
+import type { PluginDefinition, PluginConfig } from "./pluginTypes";
 
-export type PluginDefinition = {
-  function: string;
-  name: string;
-  sites: string[] | ["*"];
-};
-
-export type PluginConfig = {
-  name: string;
-  displayName: string;
-  description: string;
-  sites: string[] | ["*"];
-  enabled: boolean;
-  functionFile: string;
-};
+export type { PluginDefinition, PluginConfig };
 
 let apiSingleton: RefluxAPIType | null = null;
 

@@ -27,7 +27,27 @@ export default function Layout(props: ParentProps) {
   return (
     <div>
       <Navbar />
-      <Toaster position="top-center" />
+      <Toaster 
+        position="bottom-right" 
+        toastOptions={{
+          duration: 4000,
+          style: {
+            border: '1px solid oklch(var(--bc) / 0.2)',
+            background: 'oklch(var(--b2))',
+            color: 'oklch(var(--bc))',
+            'border-radius': '0.5rem',
+            'box-shadow': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+            'backdrop-filter': 'blur(8px)',
+          }
+        }}
+        containerStyle={{
+          top: 'auto',
+          right: '16px',
+          bottom: '16px',
+          left: 'auto',
+        }}
+        gutter={8}
+      />
       {props.children}
     </div>
   );
