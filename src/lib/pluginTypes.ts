@@ -13,4 +13,7 @@ export type PluginConfig = {
   sites: string[] | ["*"];
   enabled: boolean;
   functionFile: string;
+  _customCode?: string; // For custom plugins
+  _customType?: "html-modifier" | "userscript" | "userstyle"; // Original custom plugin type
+  _customId?: string; // Original custom plugin ID
 };

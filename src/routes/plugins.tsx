@@ -25,18 +25,17 @@ export default function Plugins() {
 
   // Custom plugin form fields
   const [customPluginName, setCustomPluginName] = createSignal("");
-  const [customPluginDisplayName, setCustomPluginDisplayName] =
-    createSignal("");
-  const [customPluginDescription, setCustomPluginDescription] =
-    createSignal("");
+  const [customPluginDisplayName, setCustomPluginDisplayName] = createSignal("");
+  const [customPluginDescription, setCustomPluginDescription] = createSignal("");
   const [customPluginDomains, setCustomPluginDomains] = createSignal("");
   const [customPluginCode, setCustomPluginCode] = createSignal("");
+  const [customPluginType, setCustomPluginType] = createSignal<"html-modifier" | "userscript" | "userstyle">("html-modifier");
 
   let customPluginModal!: HTMLDialogElement;
 
-  // Track pending changes (plugin name -> new enabled state or 'DELETE' for deletion)
+  // Track pending changes (plugin name -> new enabled state, 'DELETE' for deletion, or plugin data for edits)
   const [pendingChanges, setPendingChanges] = createSignal<
-    Record<string, boolean | 'DELETE'>
+    Record<string, boolean | 'DELETE' | CustomPlugin>
   >({});
 
   // Check if there are any unsaved changes
@@ -59,6 +58,7 @@ export default function Plugins() {
   const getEffectiveState = (plugin: PluginConfig) => {
     const pendingState = pendingChanges()[plugin.name];
     if (pendingState === 'DELETE') return false; // Deleted plugins appear disabled
+    if (typeof pendingState === 'object') return pendingState.enabled; // Plugin edit with enabled state
     return pendingState !== undefined ? pendingState : plugin.enabled;
   };
 
@@ -67,15 +67,38 @@ export default function Plugins() {
     return pendingChanges()[plugin.name] === 'DELETE';
   };
 
+  // Check if a plugin has pending edits
+  const hasPendingEdits = (plugin: PluginConfig) => {
+    const pendingState = pendingChanges()[plugin.name];
+    return typeof pendingState === 'object';
+  };
+
+  // Get effective display data for a plugin (pending edits or current data)
+  const getEffectiveDisplayData = (plugin: PluginConfig) => {
+    const pendingState = pendingChanges()[plugin.name];
+    if (typeof pendingState === 'object') {
+      return {
+        displayName: pendingState.displayName,
+        description: pendingState.description,
+        sites: pendingState.domains.includes("*") ? ["*"] : pendingState.domains,
+      };
+    }
+    return {
+      displayName: plugin.displayName,
+      description: plugin.description,
+      sites: plugin.sites,
+    };
+  };
+
   const loadPlugins = async () => {
     try {
       setLoading(true);
-      const { loadPluginsConfig } = await import("../lib/refluxPlugins");
-      const pluginConfigs = await loadPluginsConfig();
+      const { getAllPluginsUnified } = await import("../lib/customPlugins");
+      const pluginConfigs = await getAllPluginsUnified();
       setPlugins(pluginConfigs);
-      console.log("[PluginsPage] Loaded plugins:", pluginConfigs.length);
+      console.log("[PluginsPage] Loaded unified plugins:", pluginConfigs.length);
       console.log("[PluginsPage] Custom plugins:", pluginConfigs.filter(p => p.functionFile.startsWith("__custom_")).length);
-      console.log("[PluginsPage] Current pending changes:", Object.keys(pendingChanges()).length);
+      console.log("[PluginsPage] Default plugins:", pluginConfigs.filter(p => !p.functionFile.startsWith("__custom_")).length);
     } catch (error) {
       console.error("Failed to load plugins:", error);
       toast.custom(createErrorToast("Failed to load plugins"));
@@ -88,10 +111,7 @@ export default function Plugins() {
     console.log("[PluginsPage] Refreshing plugins...");
     try {
       setLoading(true);
-      const { refreshPluginSystem } = await import("../lib/refluxPlugins");
-      await refreshPluginSystem();
       await loadPlugins();
-
       toast.custom(createSuccessToast("Plugin system refreshed"));
     } catch (error) {
       console.error("[PluginsPage] Failed to refresh plugins:", error);
@@ -108,17 +128,23 @@ export default function Plugins() {
     // Don't allow toggling plugins marked for deletion
     if (pendingChanges()[pluginName] === 'DELETE') return;
 
-    const currentState =
-      pendingChanges()[pluginName] !== undefined && pendingChanges()[pluginName] !== 'DELETE'
-        ? pendingChanges()[pluginName] as boolean
-        : plugin.enabled;
-
+    const currentState = getEffectiveState(plugin);
     const newState = !currentState;
 
-    setPendingChanges((prev) => ({
-      ...prev,
-      [pluginName]: newState,
-    }));
+    // If there's already a pending plugin edit, update its enabled state
+    const existingPendingChange = pendingChanges()[pluginName];
+    if (typeof existingPendingChange === 'object') {
+      setPendingChanges((prev) => ({
+        ...prev,
+        [pluginName]: { ...existingPendingChange, enabled: newState },
+      }));
+    } else {
+      // Use pending changes system for ALL plugins (default and custom)
+      setPendingChanges((prev) => ({
+        ...prev,
+        [pluginName]: newState,
+      }));
+    }
   };
 
   const saveChanges = async () => {
@@ -127,71 +153,29 @@ export default function Plugins() {
     try {
       setSaving(true);
 
-      // First, reload plugins to ensure we have the latest state including new custom plugins
-      const { loadPluginsConfig, removePlugin } = await import("../lib/refluxPlugins");
-      const { deleteCustomPlugin } = await import("../lib/customPlugins");
-      const freshPlugins = await loadPluginsConfig();
+      const { processPendingChanges } = await import("../lib/customPlugins");
 
-      // Handle deletions first - actually delete from localStorage AND remove from plugin system
-      for (const [pluginName, pendingState] of Object.entries(pendingChanges())) {
-        if (pendingState === 'DELETE') {
-          const pluginToDelete = freshPlugins.find(p => p.name === pluginName);
-          if (pluginToDelete && pluginToDelete.functionFile.startsWith("__custom_")) {
-            const customPluginId = pluginToDelete.functionFile.replace("__custom_", "");
-            console.log("[PluginsPage] Deleting custom plugin from localStorage:", pluginName, "ID:", customPluginId);
-            deleteCustomPlugin(customPluginId);
-            
-            // Also remove from the plugin system
-            try {
-              console.log("[PluginsPage] Removing plugin from system:", pluginName);
-              await removePlugin(pluginName);
-            } catch (removeError) {
-              console.warn("[PluginsPage] Failed to remove plugin from system (may not be loaded):", pluginName, removeError);
-            }
-          }
-        }
+      console.log("[PluginsPage] Processing", Object.keys(pendingChanges()).length, "pending changes...");
+
+      // Process all pending changes using the new unified function
+      processPendingChanges(pendingChanges());
+
+      // Clear pending changes
+      setPendingChanges({});
+
+      // Force reset the plugin system to clear caches
+      console.log("[PluginsPage] Force resetting plugin system to clear caches...");
+      try {
+        const { forceResetPluginSystem } = await import("../lib/refluxPlugins");
+        await forceResetPluginSystem();
+        console.log("[PluginsPage] Plugin system reset completed");
+      } catch (resetError) {
+        console.warn("[PluginsPage] Plugin system reset failed, falling back to page reload:", resetError);
       }
 
-      // Handle custom plugin updates by removing and re-adding them to the system
-      // This ensures code changes are applied
-      for (const [pluginName, pendingState] of Object.entries(pendingChanges())) {
-        if (pendingState !== 'DELETE') {
-          const plugin = freshPlugins.find(p => p.name === pluginName);
-          if (plugin && plugin.functionFile.startsWith("__custom_")) {
-            try {
-              console.log("[PluginsPage] Refreshing custom plugin in system:", pluginName);
-              // Remove the old version first
-              await removePlugin(pluginName);
-            } catch (removeError) {
-              console.warn("[PluginsPage] Plugin may not be loaded yet:", pluginName, removeError);
-            }
-          }
-        }
-      }
+      // Show success message and reload
+      toast.custom(createSuccessToast("Changes saved! Reloading page..."));
 
-      // Reload plugins after deletions to get the updated list
-      const updatedFreshPlugins = await loadPluginsConfig();
-
-      // Apply pending enabled/disabled changes to the remaining plugins
-      const updatedPlugins = updatedFreshPlugins.map((plugin) => {
-        const pendingState = pendingChanges()[plugin.name];
-        if (pendingState === 'DELETE') {
-          // This plugin should have been deleted, skip it
-          return null;
-        }
-        return pendingState !== undefined && typeof pendingState === 'boolean'
-          ? { ...plugin, enabled: pendingState }
-          : plugin;
-      }).filter(Boolean) as PluginConfig[]; // Remove null entries
-
-      // Save to localStorage
-      const { savePluginsToLocalStorage } = await import("../lib/refluxPlugins");
-      savePluginsToLocalStorage(updatedPlugins);
-
-      // Show success message
-      toast.custom(createSuccessToast("Plugin settings saved! Reloading page..."));
-
-      // Wait a moment for the toast to show, then reload
       setTimeout(() => {
         window.location.reload();
       }, 1500);
@@ -217,12 +201,21 @@ export default function Plugins() {
     setCustomPluginDescription("");
     setCustomPluginDomains("");
     setCustomPluginCode("");
+    setCustomPluginType("html-modifier");
     customPluginModal.showModal();
   };
 
   const openEditPluginModal = async (plugin: PluginConfig) => {
-    const customPlugin = await getCustomPluginForEdit(plugin);
-    if (!customPlugin) return;
+    if (!plugin.functionFile.startsWith("__custom_")) return;
+
+    const customPluginId = plugin.functionFile.replace("__custom_", "");
+    const { getCustomPlugin } = await import("../lib/customPlugins");
+    const customPlugin = getCustomPlugin(customPluginId);
+    
+    if (!customPlugin) {
+      toast.custom(createErrorToast("Custom plugin data not found"));
+      return;
+    }
 
     setEditingCustomPlugin(customPlugin);
     setCustomPluginName(customPlugin.name);
@@ -230,10 +223,11 @@ export default function Plugins() {
     setCustomPluginDescription(customPlugin.description);
     setCustomPluginDomains(customPlugin.domains.join(", "));
     setCustomPluginCode(customPlugin.jsCode);
+    setCustomPluginType(customPlugin.type || "html-modifier");
     customPluginModal.showModal();
   };
 
-    const saveCustomPlugin = async () => {
+  const saveCustomPlugin = async () => {
     const name = customPluginName().trim();
     const displayName = customPluginDisplayName().trim();
     const description = customPluginDescription().trim();
@@ -247,55 +241,96 @@ export default function Plugins() {
 
     const domains = domainsText
       .split(",")
-      .map((d) => d.trim())
-      .filter((d) => d.length > 0);
+      .map((d: string) => d.trim())
+      .filter((d: string) => d.length > 0);
 
     try {
-      const pluginData = {
-        name,
-        displayName,
-        description,
-        domains,
-        jsCode,
-        enabled: false,
-      };
-
       if (editingCustomPlugin()) {
-        // Update the custom plugin
-        const { updateCustomPlugin } = await import("../lib/customPlugins");
-        updateCustomPlugin(editingCustomPlugin()!.id, pluginData);
+        // Don't check for name conflicts if the name hasn't changed
+        if (name !== editingCustomPlugin()!.name) {
+          // Check for name conflicts with existing plugins
+          const existingPlugin = plugins().find((p) => p.name === name);
+          if (existingPlugin) {
+            toast.custom(createErrorToast(`A plugin with the name "${name}" already exists`));
+            return;
+          }
+        }
+
+        // For editing, create the complete updated plugin data
+        const updatedPluginData = {
+          name,
+          displayName,
+          description,
+          domains,
+          jsCode,
+          enabled: editingCustomPlugin()!.enabled, // Preserve current enabled state
+          type: customPluginType(),
+          id: editingCustomPlugin()!.id, // Keep original ID
+          created: editingCustomPlugin()!.created, // Keep original created timestamp
+          updated: Date.now(), // Update the timestamp
+        };
+
+        // If the name changed, we need to handle the key change properly
+        const originalName = editingCustomPlugin()!.name;
         
-        // Add to pending changes to trigger the "Save & Reload" workflow
-        const currentPlugin = plugins().find(p => p.name === name);
-        if (currentPlugin) {
+        // Remove the old pending change if the name changed
+        if (originalName !== name) {
+          setPendingChanges((prev) => {
+            const updated = { ...prev };
+            delete updated[originalName];
+            return {
+              ...updated,
+              [name]: updatedPluginData,
+            };
+          });
+        } else {
+          // Same name, just update the pending change
           setPendingChanges((prev) => ({
             ...prev,
-            [name]: currentPlugin.enabled, // Keep current enabled state as pending
+            [name]: updatedPluginData,
           }));
         }
 
         toast.custom(createSuccessToast("Plugin updated! Click \"Save & Reload\" to apply changes."));
-
-        customPluginModal.close();
-        loadPlugins(); // Refresh to show updated plugin data
+        console.log("[PluginsPage] Plugin edit queued for save:", name);
       } else {
-        // Create new custom plugin
-        const { createCustomPlugin } = await import("../lib/customPlugins");
-        createCustomPlugin(pluginData);
-        
-        // Add new plugin to pending changes so it shows "Save & Reload" is needed
+        // Check for name conflicts with existing plugins
+        const existingPlugin = plugins().find((p) => p.name === name);
+        if (existingPlugin) {
+          toast.custom(createErrorToast(`A plugin with the name "${name}" already exists`));
+          return;
+        }
+
+        // For new plugins, create complete plugin data
+        const newPluginData = {
+          name,
+          displayName,
+          description,
+          domains,
+          jsCode,
+          enabled: false, // New plugins start disabled
+          type: customPluginType(),
+          id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          created: Date.now(),
+          updated: Date.now(),
+        };
+
+        // Add to pending changes for creation
         setPendingChanges((prev) => ({
           ...prev,
-          [name]: false, // New plugins start disabled and need Save & Reload to apply
+          [newPluginData.name]: newPluginData,
         }));
 
-        toast.custom(createSuccessToast("Custom plugin created! Click \"Save & Reload\" to apply."));
-
-        customPluginModal.close();
-        loadPlugins(); // Refresh the plugins list to show new plugin
+        toast.custom(createSuccessToast("Plugin created! Click \"Save & Reload\" to apply changes."));
+        console.log("[PluginsPage] Plugin creation queued for save:", name);
       }
+
+      customPluginModal.close();
+      setEditingCustomPlugin(undefined);
+      
     } catch (error: any) {
-      toast.custom(createErrorToast(error.message || "Failed to save plugin"));
+      console.error("Failed to prepare plugin:", error);
+      toast.custom(createErrorToast(error.message || "Failed to prepare plugin"));
     }
   };
 
@@ -319,7 +354,7 @@ export default function Plugins() {
     );
 
     if (confirmed) {
-      // Mark plugin for deletion in pending changes
+      // Mark plugin for deletion in pending changes (same as default plugins)
       setPendingChanges((prev) => ({
         ...prev,
         [plugin.name]: 'DELETE',
@@ -328,17 +363,6 @@ export default function Plugins() {
       console.log("[PluginsPage] Plugin marked for deletion:", plugin.name, "Click 'Save & Reload' to apply");
       toast.custom(createSuccessToast("Plugin marked for deletion! Click \"Save & Reload\" to apply changes."));
     }
-  };
-
-  const getCustomPluginForEdit = async (
-    plugin: PluginConfig,
-  ): Promise<CustomPlugin | undefined> => {
-    if (!plugin.functionFile.startsWith("__custom_")) return undefined;
-
-    const customPluginId = plugin.functionFile.replace("__custom_", "");
-    const { loadCustomPlugins } = await import("../lib/customPlugins");
-    const customPlugins = loadCustomPlugins();
-    return customPlugins.find((cp: CustomPlugin) => cp.id === customPluginId);
   };
 
   onMount(() => {
@@ -508,7 +532,7 @@ export default function Plugins() {
                             <div class="flex-1 min-w-0">
                               <div class="flex items-center gap-3 mb-2">
                                 <h3 class={`text-xl font-semibold ${isMarkedForDeletion(plugin) ? 'line-through opacity-50' : ''}`}>
-                                  {plugin.displayName}
+                                  {getEffectiveDisplayData(plugin).displayName}
                                 </h3>
                                 <div
                                   class={`badge ${
@@ -531,14 +555,19 @@ export default function Plugins() {
                                     </span>
                                   )}
                                 </div>
+                                {hasPendingEdits(plugin) && (
+                                  <div class="badge badge-warning">
+                                    Edited
+                                  </div>
+                                )}
                               </div>
                               <p class={`text-base-content/70 mb-3 ${isMarkedForDeletion(plugin) ? 'opacity-50' : ''}`}>
-                                {plugin.description}
+                                {getEffectiveDisplayData(plugin).description}
                               </p>
                               <div class="flex flex-wrap gap-2 text-sm">
                                 <span class="text-base-content/50">Sites:</span>
                                 <span class="font-mono text-xs bg-base-300 px-2 py-1 rounded break-words">
-                                  {getSitesList(plugin.sites)}
+                                  {getSitesList(getEffectiveDisplayData(plugin).sites)}
                                 </span>
                               </div>
                             </div>
@@ -611,8 +640,8 @@ export default function Plugins() {
             your browser.
           </p>
           <p>
-            Changes to plugin states are saved locally and will persist across
-            browser sessions.
+            All plugin changes require clicking "Save & Reload" to take effect and
+            will persist across browser sessions.
           </p>
         </div>
       </div>
@@ -627,6 +656,88 @@ export default function Plugins() {
           </h3>
 
           <div class="space-y-4">
+            {/* Plugin Type Selection */}
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text font-semibold">Plugin Type</span>
+              </label>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <label class="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pluginType"
+                    class="radio radio-primary"
+                    checked={customPluginType() === "html-modifier"}
+                    onChange={() => setCustomPluginType("html-modifier")}
+                  />
+                  <div class="ml-3">
+                    <div class="font-semibold">HTML Modifier</div>
+                    <div class="text-sm text-base-content/70">
+                      Modify page HTML content on the server side
+                    </div>
+                  </div>
+                </label>
+
+                <label class="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pluginType"
+                    class="radio radio-primary"
+                    checked={customPluginType() === "userscript"}
+                    onChange={() => setCustomPluginType("userscript")}
+                  />
+                  <div class="ml-3">
+                    <div class="font-semibold">Userscript</div>
+                    <div class="text-sm text-base-content/70">
+                      Inject JavaScript directly into web pages
+                    </div>
+                  </div>
+                </label>
+
+                <label class="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pluginType"
+                    class="radio radio-primary"
+                    checked={customPluginType() === "userstyle"}
+                    onChange={() => setCustomPluginType("userstyle")}
+                  />
+                  <div class="ml-3">
+                    <div class="font-semibold">Userstyle</div>
+                    <div class="text-sm text-base-content/70">
+                      Inject CSS styles directly into web pages
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              {customPluginType() === "userscript" && (
+                <div class="alert alert-info mt-4">
+                  <div class="text-sm">
+                    <div class="font-semibold mb-1">Userscript Mode:</div>
+                    <p>
+                      Your JavaScript code will be wrapped in &lt;script&gt; tags and
+                      injected into the page's &lt;head&gt; section. Write your code as
+                      if it's running directly in the browser.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {customPluginType() === "userstyle" && (
+                <div class="alert alert-info mt-4">
+                  <div class="text-sm">
+                    <div class="font-semibold mb-1">Userstyle Mode:</div>
+                    <p>
+                      Your CSS code will be wrapped in &lt;style&gt; tags and
+                      injected into the page's &lt;head&gt; section. Write CSS rules
+                      to style elements on the page.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="form-control">
                 <label class="label">
@@ -696,11 +807,42 @@ export default function Plugins() {
 
             <div class="form-control">
               <label class="label">
-                <span class="label-text">JavaScript Code</span>
+                <span class="label-text">
+                  {customPluginType() === "userscript" ? "JavaScript Code" : customPluginType() === "userstyle" ? "CSS Code" : "JavaScript Code"}
+                </span>
               </label>
               <textarea
                 class="textarea textarea-bordered font-mono text-sm resize-none overflow-x-auto"
-                placeholder={`// Your plugin code here
+                placeholder={
+                  customPluginType() === "userscript"
+                    ? `// Your userscript code here
+// This will run directly in the browser
+
+console.log("Hello from userscript!");
+
+document.addEventListener("DOMContentLoaded", () => {
+  const title = document.querySelector("h1");
+  if (title) {
+    title.style.color = "red";
+  }
+});`
+                    : customPluginType() === "userstyle"
+                    ? `/* Your CSS styles here */
+/* This will be injected into the page's head */
+
+body {
+  background-color: #f0f0f0;
+}
+
+h1 {
+  color: #ff6b6b !important;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.ads, .advertisement {
+  display: none !important;
+}`
+                    : `// Your plugin code here
 // The 'body' variable contains the page HTML
 // Return the modified HTML
 
@@ -708,21 +850,29 @@ if (body.includes("<head>")) {
   const customScript = '<script>console.log("My custom plugin!");</script>';
   return body.replace("<head>", "<head>" + customScript);
 }
-return body;`}
+return body;`
+                }
                 rows={12}
                 value={customPluginCode()}
                 onInput={(e) => setCustomPluginCode(e.currentTarget.value)}
               />
               <label class="label">
                 <span class="label-text-alt">
-                  JavaScript code that modifies page HTML
+                  {customPluginType() === "userscript"
+                    ? "JavaScript code that runs directly in the browser"
+                    : customPluginType() === "userstyle"
+                    ? "CSS code that will be injected into the page"
+                    : "JavaScript code that modifies page HTML"}
                 </span>
               </label>
             </div>
           </div>
 
           <div class="modal-action flex gap-2">
-            <button class="btn" onClick={() => customPluginModal.close()}>
+            <button class="btn" onClick={() => {
+              setEditingCustomPlugin(undefined);
+              customPluginModal.close();
+            }}>
               Cancel
             </button>
             <button class="btn btn-primary" onClick={saveCustomPlugin}>

@@ -20,4 +20,4 @@
 - [ ] **make notification popups be on the bottom left**, and make it extend based on the text
 - [ ] fully structure this thing after astro rewrite
 - [ ] better readme lmfao (try to explain everything in depth)
-- [ ] custom styles/userscript option in plugins
+- [x] custom styles/userscript option in plugins

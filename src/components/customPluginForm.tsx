@@ -3,6 +3,8 @@ import { Plus, Save, X, Code, Globe, Type } from "lucide-solid";
 import toast from "solid-toast";
 import { createSuccessToast, createErrorToast } from "./toast";
 
+export type PluginType = "html-modifier" | "userscript" | "userstyle";
+
 export type CustomPlugin = {
   id: string;
   name: string;
@@ -13,6 +15,7 @@ export type CustomPlugin = {
   enabled: boolean;
   created: number;
   updated: number;
+  type: PluginType;
 };
 
 type CustomPluginFormProps = {
@@ -34,6 +37,9 @@ export default function CustomPluginForm(props: CustomPluginFormProps) {
     props.editingPlugin?.domains.join(", ") || "",
   );
   const [jsCode, setJsCode] = createSignal(props.editingPlugin?.jsCode || "");
+  const [pluginType, setPluginType] = createSignal<PluginType>(
+    props.editingPlugin?.type || "html-modifier",
+  );
   const [saving, setSaving] = createSignal(false);
 
   // Validation
@@ -62,12 +68,14 @@ export default function CustomPluginForm(props: CustomPluginFormProps) {
       setDescription(props.editingPlugin.description);
       setDomainsText(props.editingPlugin.domains.join(", "));
       setJsCode(props.editingPlugin.jsCode);
+      setPluginType(props.editingPlugin.type);
     } else {
       setName("");
       setDisplayName("");
       setDescription("");
       setDomainsText("");
       setJsCode("");
+      setPluginType("html-modifier");
     }
   };
 
@@ -84,6 +92,7 @@ export default function CustomPluginForm(props: CustomPluginFormProps) {
         domains: parsedDomains(),
         jsCode: jsCode().trim(),
         enabled: props.editingPlugin?.enabled ?? false,
+        type: pluginType(),
       };
 
       props.onSave(pluginData);
@@ -192,6 +201,92 @@ export default function CustomPluginForm(props: CustomPluginFormProps) {
             </div>
           </div>
 
+          {/* Plugin Type Selection */}
+          <div class="card bg-base-200 border border-base-300">
+            <div class="card-body">
+              <h3 class="card-title flex items-center gap-2 mb-4">
+                <Code class="h-5 w-5" />
+                Plugin Type
+              </h3>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <label class="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pluginType"
+                    class="radio radio-primary"
+                    checked={pluginType() === "html-modifier"}
+                    onChange={() => setPluginType("html-modifier")}
+                  />
+                  <div class="ml-3">
+                    <div class="font-semibold">HTML Modifier</div>
+                    <div class="text-sm text-base-content/70">
+                      Modify page HTML content on the server side
+                    </div>
+                  </div>
+                </label>
+
+                <label class="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pluginType"
+                    class="radio radio-primary"
+                    checked={pluginType() === "userscript"}
+                    onChange={() => setPluginType("userscript")}
+                  />
+                  <div class="ml-3">
+                    <div class="font-semibold">Userscript</div>
+                    <div class="text-sm text-base-content/70">
+                      Inject JavaScript directly into web pages
+                    </div>
+                  </div>
+                </label>
+
+                <label class="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pluginType"
+                    class="radio radio-primary"
+                    checked={pluginType() === "userstyle"}
+                    onChange={() => setPluginType("userstyle")}
+                  />
+                  <div class="ml-3">
+                    <div class="font-semibold">Userstyle</div>
+                    <div class="text-sm text-base-content/70">
+                      Inject CSS styles directly into web pages
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              {pluginType() === "userscript" && (
+                <div class="alert alert-info mt-4">
+                  <div class="text-sm">
+                    <div class="font-semibold mb-1">Userscript Mode:</div>
+                    <p>
+                      Your JavaScript code will be wrapped in &lt;script&gt; tags and
+                      injected into the page's &lt;head&gt; section. Write your code as
+                      if it's running directly in the browser.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {pluginType() === "userstyle" && (
+                <div class="alert alert-info mt-4">
+                  <div class="text-sm">
+                    <div class="font-semibold mb-1">Userstyle Mode:</div>
+                    <p>
+                      Your CSS code will be wrapped in &lt;style&gt; tags and
+                      injected into the page's &lt;head&gt; section. Write CSS rules
+                      to style elements on the page.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Domain Configuration */}
           <div class="card bg-base-200 border border-base-300">
             <div class="card-body">
@@ -238,17 +333,50 @@ export default function CustomPluginForm(props: CustomPluginFormProps) {
             <div class="card-body">
               <h3 class="card-title flex items-center gap-2 mb-4">
                 <Code class="h-5 w-5" />
-                JavaScript Code
+                {pluginType() === "userscript" ? "JavaScript Code" : "JavaScript Code"}
               </h3>
 
               <div class="form-control">
                 <label class="label">
-                  <span class="label-text">Plugin Code</span>
+                  <span class="label-text">
+                    {pluginType() === "userscript" ? "Userscript Code" : pluginType() === "userstyle" ? "CSS Code" : "Plugin Code"}
+                  </span>
                   <span class="label-text-alt text-error">*</span>
                 </label>
                 <textarea
                   class="textarea textarea-bordered font-mono text-sm"
-                  placeholder={`// Your plugin code here
+                  placeholder={
+                    pluginType() === "userscript"
+                      ? `// Your userscript code here
+// This will run directly in the browser
+
+console.log("Hello from userscript!");
+
+// Access DOM elements
+document.addEventListener("DOMContentLoaded", () => {
+  const title = document.querySelector("h1");
+  if (title) {
+    title.style.color = "red";
+  }
+});`
+                      : pluginType() === "userstyle"
+                      ? `/* Your CSS styles here */
+/* This will be injected into the page's head */
+
+body {
+  background-color: #f0f0f0;
+}
+
+h1 {
+  color: #ff6b6b !important;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Hide annoying elements */
+.ads, .advertisement {
+  display: none !important;
+}`
+                      : `// Your plugin code here
 // The 'body' variable contains the page HTML
 // Return the modified HTML
 
@@ -256,35 +384,51 @@ if (body.includes("<head>")) {
   const customScript = '<script>console.log("My custom plugin loaded!");</script>';
   return body.replace("<head>", "<head>" + customScript);
 }
-return body;`}
+return body;`
+                  }
                   rows={15}
                   value={jsCode()}
                   onInput={(e) => setJsCode(e.currentTarget.value)}
                 />
                 <label class="label">
                   <span class="label-text-alt">
-                    JavaScript code that modifies the page. The 'body' variable
-                    contains the HTML content.
+                    {pluginType() === "userscript"
+                      ? "JavaScript code that runs directly in the browser"
+                      : pluginType() === "userstyle"
+                      ? "CSS code that will be injected into the page"
+                      : "JavaScript code that modifies the page. The 'body' variable contains the HTML content."}
                   </span>
                 </label>
               </div>
 
               <div class="alert alert-info">
                 <div class="text-sm">
-                  <div class="font-semibold mb-1">Plugin Development Tips:</div>
+                  <div class="font-semibold mb-1">
+                    {pluginType() === "userscript" ? "Userscript Development Tips:" : pluginType() === "userstyle" ? "Userstyle Development Tips:" : "Plugin Development Tips:"}
+                  </div>
                   <ul class="list-disc list-inside space-y-1 text-xs">
-                    <li>
-                      Your code has access to the 'body' variable containing
-                      page HTML
-                    </li>
-                    <li>Return the modified HTML content</li>
-                    <li>
-                      Use standard JavaScript string methods and DOM
-                      manipulation
-                    </li>
-                    <li>
-                      Test your code carefully - errors can break page loading
-                    </li>
+                    {pluginType() === "userscript" ? (
+                      <>
+                        <li>Your code runs directly in the browser context</li>
+                        <li>Access DOM elements with document.querySelector(), etc.</li>
+                        <li>Use addEventListener() for events</li>
+                        <li>All browser APIs are available (localStorage, fetch, etc.)</li>
+                      </>
+                    ) : pluginType() === "userstyle" ? (
+                      <>
+                        <li>Write standard CSS rules and selectors</li>
+                        <li>Use !important to override existing styles</li>
+                        <li>Target specific elements with precise selectors</li>
+                        <li>Use CSS variables and modern features</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>Your code has access to the 'body' variable containing page HTML</li>
+                        <li>Return the modified HTML content</li>
+                        <li>Use standard JavaScript string methods and DOM manipulation</li>
+                        <li>Test your code carefully - errors can break page loading</li>
+                      </>
+                    )}
                   </ul>
                 </div>
               </div>
