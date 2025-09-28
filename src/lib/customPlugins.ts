@@ -32,12 +32,8 @@ export function saveUnifiedPlugins(defaultPlugins: PluginConfig[], customPlugins
       customPlugins,
     };
     localStorage.setItem(UNIFIED_PLUGINS_STORAGE_KEY, JSON.stringify(dataToSave));
-    console.log("[CustomPlugins] Successfully saved unified plugin data:", {
-      defaultCount: defaultPlugins.length,
-      customCount: customPlugins.length
-    });
   } catch (error) {
-    console.error("[CustomPlugins] Failed to save unified plugins:", error);
+    console.error("Failed to save plugin configuration");
     throw new Error("Failed to save plugin configuration");
   }
 }
@@ -54,27 +50,19 @@ export function loadUnifiedPlugins(): UnifiedPluginStorage | null {
     
     // Validate structure
     if (!data.defaultPlugins || !Array.isArray(data.defaultPlugins)) {
-      console.warn("[CustomPlugins] Invalid defaultPlugins data");
       return null;
     }
     if (!data.customPlugins || !Array.isArray(data.customPlugins)) {
-      console.warn("[CustomPlugins] Invalid customPlugins data");
       return null;
     }
-
-    console.log("[CustomPlugins] Loaded unified plugin data:", {
-      defaultCount: data.defaultPlugins.length,
-      customCount: data.customPlugins.length
-    });
     
     return data;
   } catch (error) {
-    console.error("[CustomPlugins] Error loading unified plugins:", error);
     // Clear corrupted data
     try {
       localStorage.removeItem(UNIFIED_PLUGINS_STORAGE_KEY);
     } catch (clearError) {
-      console.warn("[CustomPlugins] Failed to clear corrupted localStorage:", clearError);
+      // Ignore cleanup errors
     }
     return null;
   }
@@ -85,13 +73,11 @@ export async function loadDefaultPluginsFromJSON(): Promise<PluginConfig[]> {
   try {
     const response = await fetch("/plugins/plugins.json");
     if (!response.ok) {
-      console.warn("[CustomPlugins] Failed to load plugins/plugins.json");
       return [];
     }
     const data = await response.json();
     return data.plugins || [];
   } catch (error) {
-    console.error("[CustomPlugins] Error loading plugins/plugins.json:", error);
     return [];
   }
 }
@@ -99,9 +85,6 @@ export async function loadDefaultPluginsFromJSON(): Promise<PluginConfig[]> {
 // Convert custom plugin to PluginConfig format
 export function customPluginToPluginConfig(customPlugin: CustomPlugin): PluginConfig {
   let processedCode = customPlugin.jsCode;
-  
-  console.log(`[CustomPlugins] Converting plugin "${customPlugin.name}" (type: ${customPlugin.type}) to PluginConfig`);
-  console.log(`[CustomPlugins] Original code (first 100 chars):`, customPlugin.jsCode.substring(0, 100));
   
   // Process code based on plugin type
   if (customPlugin.type === "userscript") {
@@ -114,7 +97,6 @@ ${customPlugin.jsCode.replace(/`/g, '\\`')}
 }
 return body;
 `;
-    console.log(`[CustomPlugins] Processed as USERSCRIPT for plugin "${customPlugin.name}"`);
   } else if (customPlugin.type === "userstyle") {
     processedCode = `
 if (body.includes('<head>')) {
@@ -125,14 +107,10 @@ ${customPlugin.jsCode.replace(/`/g, '\\`')}
 }
 return body;
 `;
-    console.log(`[CustomPlugins] Processed as USERSTYLE for plugin "${customPlugin.name}"`);
   } else {
-    console.log(`[CustomPlugins] Using original code for html-modifier plugin "${customPlugin.name}"`);
     // For html-modifier, use the code as-is
     processedCode = customPlugin.jsCode;
   }
-
-  console.log(`[CustomPlugins] Final processed code (first 100 chars):`, processedCode.substring(0, 100));
 
   const config: PluginConfig = {
     name: customPlugin.name,
@@ -142,18 +120,9 @@ return body;
     enabled: customPlugin.enabled,
     functionFile: `__custom_${customPlugin.id}`,
     _customCode: processedCode,
-    _customType: customPlugin.type, // Store original type for reference
-    _customId: customPlugin.id, // Store ID for easier lookup
+    _customType: customPlugin.type,
+    _customId: customPlugin.id,
   };
-
-  console.log(`[CustomPlugins] Created PluginConfig for "${customPlugin.name}":`, {
-    name: config.name,
-    enabled: config.enabled,
-    type: customPlugin.type,
-    functionFile: config.functionFile,
-    hasCustomCode: !!config._customCode,
-    customCodeType: customPlugin.type
-  });
 
   return config;
 }
@@ -164,29 +133,12 @@ export async function getAllPluginsUnified(): Promise<PluginConfig[]> {
   
   if (stored) {
     // Convert custom plugins to PluginConfig format and merge with default plugins
-    console.log("[CustomPlugins] Converting custom plugins to PluginConfig format...");
-    const customPluginConfigs = stored.customPlugins.map((customPlugin, index) => {
-      console.log(`[CustomPlugins] Converting plugin ${index + 1}/${stored.customPlugins.length}:`, {
-        name: customPlugin.name,
-        type: customPlugin.type,
-        codeLength: customPlugin.jsCode?.length || 0
-      });
-      return customPluginToPluginConfig(customPlugin);
-    });
+    const customPluginConfigs = stored.customPlugins.map(customPluginToPluginConfig);
     const allPlugins = [...stored.defaultPlugins, ...customPluginConfigs];
-    
-    console.log(`[CustomPlugins] Using stored unified plugins: ${stored.defaultPlugins.length} default, ${stored.customPlugins.length} custom`);
-    console.log(`[CustomPlugins] Custom plugin configs generated:`, customPluginConfigs.map(p => ({
-      name: p.name,
-      functionFile: p.functionFile,
-      hasCustomCode: !!p._customCode,
-      customType: p._customType
-    })));
     return allPlugins;
   }
 
   // First time - load from JSON and initialize unified storage
-  console.log("[CustomPlugins] First time load - initializing unified storage");
   const defaultPlugins = await loadDefaultPluginsFromJSON();
   const customPlugins: CustomPlugin[] = [];
   
@@ -224,7 +176,6 @@ export function createCustomPlugin(pluginData: Omit<CustomPlugin, "id" | "create
   const updatedCustomPlugins = [...existingCustomPlugins, newPlugin];
   saveUnifiedPlugins(defaultPlugins, updatedCustomPlugins);
 
-  console.log("[CustomPlugins] Created new custom plugin:", newPlugin.name, "Type:", newPlugin.type);
   return newPlugin;
 }
 
@@ -244,9 +195,6 @@ export function updateCustomPlugin(id: string, updates: Partial<Omit<CustomPlugi
   }
 
   const existingPlugin = customPlugins[pluginIndex];
-
-  console.log(`[CustomPlugins] Updating plugin "${existingPlugin.name}" (ID: ${id})`);
-  console.log(`[CustomPlugins] Current type: ${existingPlugin.type}, New type: ${updates.type || 'unchanged'}`);
 
   // Check for name conflicts if name is being changed
   if (updates.name && updates.name !== existingPlugin.name) {
@@ -271,7 +219,6 @@ export function updateCustomPlugin(id: string, updates: Partial<Omit<CustomPlugi
   customPlugins[pluginIndex] = updatedPlugin;
   saveUnifiedPlugins(defaultPlugins, customPlugins);
 
-  console.log("[CustomPlugins] Successfully updated custom plugin:", updatedPlugin.name, "Type:", updatedPlugin.type);
   return updatedPlugin;
 }
 
@@ -287,15 +234,12 @@ export function deleteCustomPlugin(id: string): boolean {
   const pluginIndex = customPlugins.findIndex(p => p.id === id);
 
   if (pluginIndex === -1) {
-    console.warn("[CustomPlugins] Plugin ID not found for deletion:", id);
     return false;
   }
 
-  const pluginName = customPlugins[pluginIndex].name;
   customPlugins.splice(pluginIndex, 1);
   saveUnifiedPlugins(defaultPlugins, customPlugins);
 
-  console.log("[CustomPlugins] Deleted custom plugin:", pluginName, "ID:", id);
   return true;
 }
 
@@ -311,7 +255,6 @@ export function getCustomPlugin(id: string): CustomPlugin | undefined {
 export function updatePluginStates(pluginStates: Record<string, boolean>): void {
   const stored = loadUnifiedPlugins();
   if (!stored) {
-    console.warn("[CustomPlugins] No stored data found for updating plugin states");
     return;
   }
 
@@ -322,7 +265,6 @@ export function updatePluginStates(pluginStates: Record<string, boolean>): void 
   defaultPlugins.forEach(plugin => {
     if (pluginStates[plugin.name] !== undefined) {
       plugin.enabled = pluginStates[plugin.name];
-      console.log(`[CustomPlugins] Updated default plugin state: ${plugin.name} -> ${plugin.enabled}`);
     }
   });
 
@@ -330,12 +272,10 @@ export function updatePluginStates(pluginStates: Record<string, boolean>): void 
   customPlugins.forEach(plugin => {
     if (pluginStates[plugin.name] !== undefined) {
       plugin.enabled = pluginStates[plugin.name];
-      console.log(`[CustomPlugins] Updated custom plugin state: ${plugin.name} -> ${plugin.enabled}`);
     }
   });
 
   saveUnifiedPlugins(defaultPlugins, customPlugins);
-  console.log("[CustomPlugins] Updated plugin states:", Object.keys(pluginStates));
 }
 
 // Process batch changes from the pending changes system
@@ -348,30 +288,19 @@ export function processPendingChanges(pendingChanges: Record<string, boolean | '
   let defaultPlugins = [...stored.defaultPlugins];
   let customPlugins = [...stored.customPlugins];
 
-  console.log("[CustomPlugins] Processing", Object.keys(pendingChanges).length, "pending changes...");
-  console.log("[CustomPlugins] Current state:", {
-    defaultCount: defaultPlugins.length,
-    customCount: customPlugins.length
-  });
-
   // Validate storage before processing
   const validation = validateStorageIntegrity();
   if (!validation.valid) {
-    console.warn("[CustomPlugins] Storage integrity issues:", validation.errors);
+    throw new Error("Storage integrity check failed");
   }
 
   // Process all pending changes
   for (const [pluginName, pendingState] of Object.entries(pendingChanges)) {
-    console.log("[CustomPlugins] Processing change for:", pluginName, typeof pendingState);
-
     if (pendingState === 'DELETE') {
       // Delete custom plugin
       const customPlugin = customPlugins.find(p => p.name === pluginName);
       if (customPlugin) {
         customPlugins = customPlugins.filter(p => p.id !== customPlugin.id);
-        console.log("[CustomPlugins] Deleted custom plugin:", pluginName, "ID:", customPlugin.id);
-      } else {
-        console.warn("[CustomPlugins] Plugin marked for deletion not found:", pluginName);
       }
     } else if (typeof pendingState === 'object') {
       // Plugin edit or creation (CustomPlugin object)
@@ -379,7 +308,6 @@ export function processPendingChanges(pendingChanges: Record<string, boolean | '
       
       // Validate the custom plugin object
       if (!customPlugin.id || !customPlugin.name || !customPlugin.type) {
-        console.error("[CustomPlugins] Invalid custom plugin data:", customPlugin);
         throw new Error(`Invalid custom plugin data for "${pluginName}"`);
       }
       
@@ -387,46 +315,23 @@ export function processPendingChanges(pendingChanges: Record<string, boolean | '
       
       if (existingCustomPluginIndex !== -1) {
         // Update existing custom plugin
-        const oldPlugin = customPlugins[existingCustomPluginIndex];
         customPlugins[existingCustomPluginIndex] = { ...customPlugin };
-        console.log("[CustomPlugins] Updated custom plugin:", {
-          oldName: oldPlugin.name,
-          newName: customPlugin.name,
-          oldType: oldPlugin.type,
-          newType: customPlugin.type,
-          id: customPlugin.id
-        });
       } else {
         // Create new custom plugin
         customPlugins.push({ ...customPlugin });
-        console.log("[CustomPlugins] Created new custom plugin:", {
-          name: customPlugin.name,
-          type: customPlugin.type,
-          id: customPlugin.id
-        });
       }
     } else if (typeof pendingState === 'boolean') {
       // Update enabled state
-      let found = false;
-      
       // Check default plugins first
       const defaultPlugin = defaultPlugins.find(p => p.name === pluginName);
       if (defaultPlugin) {
         defaultPlugin.enabled = pendingState;
-        console.log("[CustomPlugins] Updated default plugin enabled state:", pluginName, "->", pendingState);
-        found = true;
       }
       
       // Check custom plugins
       const customPlugin = customPlugins.find(p => p.name === pluginName);
       if (customPlugin) {
         customPlugin.enabled = pendingState;
-        console.log("[CustomPlugins] Updated custom plugin enabled state:", pluginName, "->", pendingState);
-        found = true;
-      }
-      
-      if (!found) {
-        console.warn("[CustomPlugins] Plugin not found for state update:", pluginName);
       }
     }
   }
@@ -434,15 +339,9 @@ export function processPendingChanges(pendingChanges: Record<string, boolean | '
   // Save unified data
   saveUnifiedPlugins(defaultPlugins, customPlugins);
   
-  console.log("[CustomPlugins] Saved unified plugin data:", {
-    defaultCount: defaultPlugins.length,
-    customCount: customPlugins.length
-  });
-  
   // Validate after save
   const postValidation = validateStorageIntegrity();
   if (!postValidation.valid) {
-    console.error("[CustomPlugins] Storage corrupted after save:", postValidation.errors);
     throw new Error("Storage became corrupted after saving changes");
   }
 }
@@ -450,7 +349,6 @@ export function processPendingChanges(pendingChanges: Record<string, boolean | '
 // Clear all plugin data (reset)
 export function clearAllPlugins(): void {
   localStorage.removeItem(UNIFIED_PLUGINS_STORAGE_KEY);
-  console.log("[CustomPlugins] Cleared all plugin data");
 }
 
 // Get plugin statistics
@@ -470,49 +368,6 @@ export function getPluginStats(): { total: number; enabled: number; disabled: nu
     custom: stored.customPlugins.length,
     default: stored.defaultPlugins.length,
   };
-}
-
-// Debug function
-export function debugUnifiedStorage(): void {
-  console.group("[CustomPlugins] Unified Storage Debug");
-  
-  try {
-    const raw = localStorage.getItem(UNIFIED_PLUGINS_STORAGE_KEY);
-    const stored = raw ? JSON.parse(raw) : null;
-    console.log("Raw localStorage:", raw?.substring(0, 200) + "...");
-    console.log("Parsed data:", stored);
-    
-    if (stored) {
-      console.log("Storage version:", stored.version);
-      console.log("Last updated:", new Date(stored.timestamp));
-      console.log("Default plugins:", stored.defaultPlugins?.length || 0);
-      console.log("Custom plugins:", stored.customPlugins?.length || 0);
-      
-      // Show custom plugin details
-      if (stored.customPlugins?.length > 0) {
-        console.group("Custom Plugin Details:");
-        stored.customPlugins.forEach((plugin: CustomPlugin, index: number) => {
-          console.log(`${index + 1}. ${plugin.name} (${plugin.displayName})`, {
-            id: plugin.id,
-            type: plugin.type,
-            enabled: plugin.enabled,
-            domains: plugin.domains,
-            created: new Date(plugin.created),
-            updated: new Date(plugin.updated),
-            codeLength: plugin.jsCode?.length || 0
-          });
-        });
-        console.groupEnd();
-      }
-    }
-    
-    const stats = getPluginStats();
-    console.log("Plugin statistics:", stats);
-  } catch (error) {
-    console.error("Error reading unified storage:", error);
-  }
-  
-  console.groupEnd();
 }
 
 // Validate localStorage integrity
@@ -573,13 +428,6 @@ export function validateStorageIntegrity(): { valid: boolean; errors: string[] }
     errors.push(`Storage validation error: ${error}`);
     return { valid: false, errors };
   }
-}
-
-// Make debug functions available globally
-if (typeof window !== 'undefined') {
-  (window as any).debugUnifiedStorage = debugUnifiedStorage;
-  (window as any).validateStorageIntegrity = validateStorageIntegrity;
-  (window as any).clearAllPlugins = clearAllPlugins;
 }
 
 // Legacy compatibility exports (for gradual migration)

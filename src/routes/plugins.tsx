@@ -48,11 +48,34 @@ export default function Plugins() {
       .filter((p) => pendingChanges()[p.name] !== 'DELETE'),
   );
 
-  const customPlugins = createMemo(() =>
-    plugins()
+  const customPlugins = createMemo(() => {
+    // Start with existing custom plugins
+    const existing = plugins()
       .filter((p) => p.functionFile.startsWith("__custom_"))
-      .filter((p) => pendingChanges()[p.name] !== 'DELETE'),
-  );
+      .filter((p) => pendingChanges()[p.name] !== 'DELETE');
+
+    // Add pending new plugins (those that are CustomPlugin objects but not yet in the plugins list)
+    const pendingNewPlugins = Object.entries(pendingChanges())
+      .filter(([, change]) => typeof change === 'object' && change !== null && 'id' in change)
+      .map(([, change]) => change as CustomPlugin)
+      .filter((pendingPlugin) => 
+        // Only include if it's not already in the existing plugins list
+        !existing.find(p => p._customId === pendingPlugin.id)
+      )
+      .map((pendingPlugin) => ({
+        name: pendingPlugin.name,
+        displayName: pendingPlugin.displayName,
+        description: pendingPlugin.description,
+        sites: pendingPlugin.domains.includes("*") ? ["*"] : pendingPlugin.domains,
+        enabled: pendingPlugin.enabled,
+        functionFile: `__custom_${pendingPlugin.id}`,
+        _customCode: "",
+        _customType: pendingPlugin.type,
+        _customId: pendingPlugin.id,
+      } as PluginConfig));
+
+    return [...existing, ...pendingNewPlugins];
+  });
 
   // Get the effective state of a plugin (pending change or current state)
   const getEffectiveState = (plugin: PluginConfig) => {
@@ -96,9 +119,6 @@ export default function Plugins() {
       const { getAllPluginsUnified } = await import("../lib/customPlugins");
       const pluginConfigs = await getAllPluginsUnified();
       setPlugins(pluginConfigs);
-      console.log("[PluginsPage] Loaded unified plugins:", pluginConfigs.length);
-      console.log("[PluginsPage] Custom plugins:", pluginConfigs.filter(p => p.functionFile.startsWith("__custom_")).length);
-      console.log("[PluginsPage] Default plugins:", pluginConfigs.filter(p => !p.functionFile.startsWith("__custom_")).length);
     } catch (error) {
       console.error("Failed to load plugins:", error);
       toast.custom(createErrorToast("Failed to load plugins"));
@@ -108,13 +128,12 @@ export default function Plugins() {
   };
 
   const refreshPlugins = async () => {
-    console.log("[PluginsPage] Refreshing plugins...");
     try {
       setLoading(true);
       await loadPlugins();
       toast.custom(createSuccessToast("Plugin system refreshed"));
     } catch (error) {
-      console.error("[PluginsPage] Failed to refresh plugins:", error);
+      console.error("Failed to refresh plugins:", error);
       toast.custom(createErrorToast("Failed to refresh plugins"));
     } finally {
       setLoading(false);
@@ -152,10 +171,9 @@ export default function Plugins() {
 
     try {
       setSaving(true);
+      console.log("=== Starting Plugin Cache Clearing & Save Process ===");
 
       const { processPendingChanges } = await import("../lib/customPlugins");
-
-      console.log("[PluginsPage] Processing", Object.keys(pendingChanges()).length, "pending changes...");
 
       // Process all pending changes using the new unified function
       processPendingChanges(pendingChanges());
@@ -163,15 +181,47 @@ export default function Plugins() {
       // Clear pending changes
       setPendingChanges({});
 
-      // Force reset the plugin system to clear caches
-      console.log("[PluginsPage] Force resetting plugin system to clear caches...");
+      console.log("1. Forcing comprehensive plugin system reset...");
+      
+      // Enhanced plugin cache clearing with fallbacks
       try {
         const { forceResetPluginSystem } = await import("../lib/refluxPlugins");
+        
+        // Check if debugging functions are available on window (for comprehensive clearing)
+        if (typeof (window as any).forceResetPluginSystem === 'function') {
+          await (window as any).forceResetPluginSystem();
+          console.log("✅ Window-level plugin system reset completed");
+        } else {
+          console.log("⚠️ Window forceResetPluginSystem not available, using module function...");
+        }
+        
+        // Always call the module-level reset as well
         await forceResetPluginSystem();
-        console.log("[PluginsPage] Plugin system reset completed");
+        console.log("✅ Module-level plugin system reset completed");
+        
+        // Try alternative reset methods if available
+        if (typeof (window as any).refreshPluginSystem === 'function') {
+          await (window as any).refreshPluginSystem();
+          console.log("✅ Plugin system refresh completed");
+        }
+        
       } catch (resetError) {
-        console.warn("[PluginsPage] Plugin system reset failed, falling back to page reload:", resetError);
+        console.error("❌ Plugin system reset failed:", resetError);
+        // Continue with page reload even if reset fails
       }
+
+      console.log("2. Checking current plugin state...");
+      try {
+        // Check plugin state if debugging functions are available
+        if (typeof (window as any).listPlugins === 'function') {
+          const plugins = await (window as any).listPlugins();
+          console.log("Current plugins:", plugins);
+        }
+      } catch (listError) {
+        console.log("Could not list current plugins:", listError);
+      }
+
+      console.log("3. Cache clearing completed. Reloading page...");
 
       // Show success message and reload
       toast.custom(createSuccessToast("Changes saved! Reloading page..."));
@@ -191,6 +241,47 @@ export default function Plugins() {
     // Reload plugins to show the current state without pending changes
     await loadPlugins();
     toast.custom(createSuccessToast("Changes discarded"));
+  };
+
+  // Manual cache clearing function for debugging (exposed to window)
+  const clearPluginCacheManual = async () => {
+    console.log("=== Manual Plugin Cache Clearing ===");
+    
+    try {
+      console.log("1. Forcing plugin system reset...");
+      
+      const { forceResetPluginSystem } = await import("../lib/refluxPlugins");
+      
+      // Check if debugging functions are available on window
+      if (typeof (window as any).forceResetPluginSystem === 'function') {
+        await (window as any).forceResetPluginSystem();
+        console.log("✅ Window-level plugin system reset completed");
+      } else {
+        console.log("⚠️ Window forceResetPluginSystem not available, trying alternative...");
+        
+        if (typeof (window as any).refreshPluginSystem === 'function') {
+          await (window as any).refreshPluginSystem();
+          console.log("✅ Plugin system refresh completed");
+        } else {
+          console.log("❌ No window-level plugin reset functions available");
+        }
+      }
+      
+      // Always call module-level reset
+      await forceResetPluginSystem();
+      console.log("✅ Module-level plugin system reset completed");
+      
+      console.log("2. Checking current plugin state...");
+      if (typeof (window as any).listPlugins === 'function') {
+        const plugins = await (window as any).listPlugins();
+        console.log("Current plugins:", plugins);
+      }
+      
+      console.log("3. Manual cache clearing completed. Try visiting the test page now.");
+      
+    } catch (error) {
+      console.error("❌ Manual cache clearing failed:", error);
+    }
   };
 
   // Custom plugin management functions
@@ -292,7 +383,6 @@ export default function Plugins() {
         }
 
         toast.custom(createSuccessToast("Plugin updated! Click \"Save & Reload\" to apply changes."));
-        console.log("[PluginsPage] Plugin edit queued for save:", name);
       } else {
         // Check for name conflicts with existing plugins
         const existingPlugin = plugins().find((p) => p.name === name);
@@ -322,7 +412,6 @@ export default function Plugins() {
         }));
 
         toast.custom(createSuccessToast("Plugin created! Click \"Save & Reload\" to apply changes."));
-        console.log("[PluginsPage] Plugin creation queued for save:", name);
       }
 
       customPluginModal.close();
@@ -344,7 +433,6 @@ export default function Plugins() {
         delete updated[plugin.name];
         return updated;
       });
-      console.log("[PluginsPage] Plugin restored:", plugin.name);
       toast.custom(createSuccessToast("Plugin restored!"));
       return;
     }
@@ -360,13 +448,15 @@ export default function Plugins() {
         [plugin.name]: 'DELETE',
       }));
 
-      console.log("[PluginsPage] Plugin marked for deletion:", plugin.name, "Click 'Save & Reload' to apply");
       toast.custom(createSuccessToast("Plugin marked for deletion! Click \"Save & Reload\" to apply changes."));
     }
   };
 
   onMount(() => {
     loadPlugins();
+    
+    // Expose manual cache clearing function to window for debugging
+    (window as any).clearPluginCacheManual = clearPluginCacheManual;
   });
 
   const getSitesList = (sites: string[] | ["*"]) => {
