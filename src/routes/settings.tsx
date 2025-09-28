@@ -16,7 +16,7 @@ import type {
   CloakData,
 } from "../lib/types";
 
-import { CircleHelp, Trash } from "lucide-solid";
+import { CircleHelp, Trash, SatelliteDish } from "lucide-solid";
 import { exportData, importData, resetData } from "../lib/browsingdata";
 import { handleTransport } from "../lib/transport";
 import { DEFAULT_WISP_URL } from "../lib/proxy";
@@ -71,6 +71,8 @@ export default function Settings() {
     "wss://student.studentvue.my.cdn.cloudflare.net/wisp/",
     "wss://nebulaservices.org/wisp/",
   ]);
+  const [pingResult, setPingResult] = createSignal("");
+  const [pinging, setPinging] = createSignal(false);
 
   const [searchEngine, setSearchEngine] = createSignal("google");
   const [searchCustomUrl, setSearchCustomUrl] = createSignal(
@@ -330,6 +332,60 @@ export default function Settings() {
     } catch (e) {}
     syncAdblockToSW(enabled);
   });
+
+  const pingWispServer = async () => {
+    const url = wispModalUrl().trim();
+    if (!url) {
+      setPingResult("No URL provided");
+      return;
+    }
+
+    if (!url.startsWith("ws://") && !url.startsWith("wss://")) {
+      setPingResult("Invalid URL format");
+      return;
+    }
+
+    setPinging(true);
+    setPingResult("Pinging...");
+    const startTime = performance.now();
+
+    try {
+      const ws = new WebSocket(url);
+      
+      const timeout = setTimeout(() => {
+        ws.close();
+        setPingResult("Timeout");
+        setPinging(false);
+      }, 10000); // 10 second timeout
+
+      ws.onopen = () => {
+        const endTime = performance.now();
+        const duration = Math.round(endTime - startTime);
+        clearTimeout(timeout);
+        ws.close();
+        setPingResult(`${duration}ms`);
+        setPinging(false);
+      };
+
+      ws.onerror = () => {
+        clearTimeout(timeout);
+        setPingResult("Connection failed");
+        setPinging(false);
+      };
+
+      ws.onclose = (event) => {
+        clearTimeout(timeout);
+        if (event.code !== 1000 && pingResult() === "Pinging...") {
+          setPingResult("Connection closed");
+          setPinging(false);
+        }
+      };
+    } catch (error) {
+      console.error("Ping failed:", error);
+      setPingResult("Error");
+      setPinging(false);
+    }
+  };
 
   return (
     <div class="flex flex-col items-center gap-4">
@@ -810,21 +866,35 @@ export default function Settings() {
                     <div class="flex-1 text-left whitespace-normal break-all font-geist-mono">
                       {url}
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const next = wispPresets().filter(
-                          (_, idx) => idx !== i,
-                        );
-                        setWispPresets(next);
-                        store.local.set("wispPresets", next);
-                        toast.custom(createSuccessToast("Wisp preset deleted."));
-                      }}
-                      class="btn btn-square btn-ghost btn-sm shrink-0 sm:opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200"
-                    >
-                      <Trash class="h-4 w-4 text-red-400" />
-                    </button>
+                    <div class="flex gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setWispModalUrl(url);
+                          pingWispServer();
+                        }}
+                        class="btn btn-square btn-ghost btn-sm shrink-0 sm:opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200"
+                        title="Ping server"
+                      >
+                        <SatelliteDish size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = wispPresets().filter(
+                            (_, idx) => idx !== i,
+                          );
+                          setWispPresets(next);
+                          store.local.set("wispPresets", next);
+                          toast.custom(createSuccessToast("Wisp preset deleted."));
+                        }}
+                        class="btn btn-square btn-ghost btn-sm shrink-0 sm:opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200"
+                      >
+                        <Trash class="h-4 w-4 text-red-400" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -846,6 +916,15 @@ export default function Settings() {
                 <button
                   class="btn btn-outline border-base-300 h-12 min-h-12 px-4"
                   type="button"
+                  title="Ping server"
+                  onClick={pingWispServer}
+                  disabled={pinging()}
+                >
+                  {pinging() ? "..." : "Ping"}
+                </button>
+                <button
+                  class="btn btn-outline border-base-300 h-12 min-h-12 px-4"
+                  type="button"
                   title="Add preset"
                   onClick={() => {
                     const url = wispModalUrl().trim();
@@ -864,6 +943,19 @@ export default function Settings() {
                   +
                 </button>
               </div>
+              {pingResult() && (
+                <div class="mt-2">
+                  <span class="text-sm text-gray-500">
+                    Ping: <span 
+                      class={pingResult().includes("ms") ? "text-green-400 font-mono" : 
+                             pingResult() === "Pinging..." ? "text-yellow-400" : 
+                             "text-red-400"}
+                    >
+                      {pingResult()}
+                    </span>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           <div class="modal-action flex gap-2">
